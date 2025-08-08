@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Latin Frog — Declension Bridges</title>
+<style>
+  /* Minimal CSS; no CSS custom properties and no single quotes to avoid doc.write parsers that wrap in single quotes. */
+  html,body{margin:0;height:100%;background:#a8d8ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji",sans-serif}
+  #wrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;}
+  header{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;color:#16324f}
+  header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:0.4px}
+  .pill{display:inline-flex;gap:10px;align-items:center;background:#f5fbff;border:2px solid #cfe9ff;border-radius:999px;padding:6px 10px;box-shadow:0 2px 0 rgba(0,0,0,0.06)}
+  #canvas{flex:1;width:100%;max-width:980px;aspect-ratio:16/9;background:linear-gradient(180deg,#70c050,#5bb140);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.15);touch-action:none}
+  footer{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;color:#16324f}
+  button{background:#16324f;color:white;border:none;border-radius:10px;padding:10px 14px;font-weight:700;box-shadow:0 3px 0 rgba(0,0,0,.15);cursor:pointer}
+  button:active{transform:translateY(1px)}
+  .legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .tag{background:#fff;color:#234;border:1px solid #cde;border-radius:8px;padding:4px 8px;font-size:12px}
+  .toast{position:fixed;left:50%;top:10px;transform:translateX(-50%);background:#ffefef;color:#7a1515;border:1px solid #ffb6b6;padding:8px 12px;border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,.15);font-size:12px;z-index:9999;display:none}
+  /* Win overlay sits over the canvas, under the banner area */
+  #winOverlay{position:absolute;top:14%;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.92);border:2px solid #cfe9ff;border-radius:14px;padding:10px 14px;display:none;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+  #winOverlay .time{color:#16324f;font-weight:700;margin-right:8px}
+  @media (max-width:700px){header h1{font-size:16px} button{padding:8px 12px}}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <h1>Frogger, But Make It Latin 🐸</h1>
+    <div class="pill">
+      <span>Crossing <span id="level">1</span>/8</span>
+      <span>Lives <span id="lives">3</span></span>
+      <span>Time <span id="time">0.0</span>s</span>
+      <span>Best <span id="best">—</span></span>
+    </div>
+  </header>
+  <canvas id="canvas"></canvas>
+  <div id="winOverlay">
+    <span class="time">Total Time: <span id="finalTime">0.0s</span></span>
+    <button id="playAgainBtn">Play Again</button>
+  </div>
+  <footer>
+    <div class="legend">
+      <span class="tag">Left/Right choose a tile — <b>Enter</b> jumps</span>
+      <span class="tag">Order — Nom Gen Dat Acc Abl (Sg) → Nom Gen Dat Acc Abl (Pl)</span>
+      <span class="tag">Wrong tile = splash!</span>
+    </div>
+    <div>
+      <button id="restartBtn">Restart Run</button>
+    </div>
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/***********************
+ * COLORS (no CSS vars; only double quotes)
+ ***********************/
+const COLORS = {
+  sky:"#a8d8ff", grass1:"#70c050", grass2:"#5bb140",
+  meadow1:"#7dd56f", meadow2:"#66c15e", meadow3:"#8fe280",
+  river1:"#3aa7e0", river2:"#2f97d6",
+  bridge:"#d9bf8f", bridgeEdge:"#b79b6d", bridgeShadow:"rgba(0,0,0,.25)",
+  plank:"#e6cc9a", plankLine:"#c5a97a", post:"#9c7b45", rope:"#d2b07a",
+  tile:"#f7ead1", tileText:"#231f15", tileGlow:"#7bf5a3", tilePanel:"#fff9e8", tileWrong:"#ffd6c7",
+  ui:"#16324f", ui2:"#f5fbff", accent:"#ffd24f",
+  flower1:"#ff77aa", flower2:"#ffd24f", flower3:"#88ddff", flower4:"#ff9de1",
+  bug:"#222", pad:"#6fb86a", padEdge:"#4f9f52",
+  fish:"#ff7043", splash:"#9dd9ff",
+  confetti1:"#ff5f6d", confetti2:"#ffc371", confetti3:"#fff176", confetti4:"#7cf6a3", confetti5:"#64b5f6", confetti6:"#ba68c8"
+};
+
+/***********************
+ * DATA & CONFIG
+ ***********************/
+const ENDINGS_ROWS = [
+  ["a","us/r","um","*","*","us","u","es"],
+  ["ae","i","i","is","is","us","us","ei"],
+  ["ae","o","o","i","i","ui","u","ei"],
+  ["am","um","um","em","*","um","u","em"],
+  ["a","o","o","e","e","u","u","e"],
+  ["ae","i","a","es","a","us","ua","es"],
+  ["arum","orum","orum","um","um","uum","uum","erum"],
+  ["is","is","is","ibus","ibus","ibus","ibus","ebus"],
+  ["as","os","a","es","a","us","ua","es"],
+  ["is","is","is","ibus","ibus","ibus","ibus","ebus"],
+];
+const BRIDGE_ORDER = [0,1,2,3,4,5,6,7];
+const DECLENSION_LABELS = ["1st","2nd","2nd n.","3rd","3rd n.","4th","4th n.","5th"];
+const TILE_COLS = 5;
+const TILE_ROWS = 10;
+const START_COL = Math.floor(TILE_COLS/2);
+const LIVES_PER_BRIDGE = 3;
+const TOTAL_BRIDGES = 8;
+const SEQS = BRIDGE_ORDER.map(d => ENDINGS_ROWS.map(row => row[d]));
+
+// avatar persistence
+let nextAvatar = JSON.parse(localStorage.getItem("latinFrogAvatar")||"null") || {color:"#3aa34a", pattern:"none", rainbow:false};
+let playthroughs = parseInt(localStorage.getItem("latinFrogRuns")||"0",10);
+let rainbowShown = localStorage.getItem("latinRainbowShown") === "true"; // banner already shown once
+
+// game phases
+const PHASE_BRIDGES = "bridges";
+const PHASE_MEADOW  = "meadow";
+let phase = PHASE_BRIDGES;
+
+/***********************
+ * GLOBAL STATE
+ ***********************/
+let bridge = null;        // current bridge layout
+let level = 0;            // 0..7
+let startX = 0, startY = 0, goalY = 0; // frog waypoints
+let runStartTime = performance.now();
+let lastRunElapsed = 0;
+let best = localStorage.getItem("latinFrogBest") ? parseFloat(localStorage.getItem("latinFrogBest")) : null;
+let targetRow = 0;        // which row is currently being answered
+let selectedCol = START_COL; // which column is currently highlighted
+
+/***********************
+ * CANVAS & RESPONSIVE LAYOUT
+ ***********************/
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+let DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+let W=960, H=540;
+let RIVER_Y1=0, RIVER_Y2=0; // updated on resize
+
+function resize(){
+  const maxW = 980; const ratio = 16/9;
+  const wrapEl = document.getElementById("wrap");
+  const wrapW = (wrapEl && wrapEl.clientWidth) ? wrapEl.clientWidth : (window.innerWidth || 980);
+  let cssW = Math.max(320, Math.min(maxW, wrapW - 24));
+  let cssH = Math.max(180, Math.floor(cssW/ratio));
+  DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  canvas.width = Math.max(1, Math.floor(cssW * DPR));
+  canvas.height = Math.max(1, Math.floor(cssH * DPR));
+  canvas.style.width = cssW+"px";
+  canvas.style.height = cssH+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  W = cssW; H = cssH;
+  RIVER_Y1 = H*0.12;
+  RIVER_Y2 = H*0.86;
+  if (bridge && phase===PHASE_BRIDGES) loadBridge(level, true);
+}
+window.addEventListener("resize", resize, {passive:true});
+resize();
+
+/***********************
+ * UI
+ ***********************/
+const uiLevel = document.getElementById("level");
+const uiLives = document.getElementById("lives");
+const uiTime  = document.getElementById("time");
+const uiBest  = document.getElementById("best");
+document.getElementById("restartBtn").addEventListener("click", () => { phase=PHASE_BRIDGES; restartRun(); });
+const winOverlay = document.getElementById("winOverlay");
+const finalTimeEl = document.getElementById("finalTime");
+const playAgainBtn = document.getElementById("playAgainBtn");
+playAgainBtn.addEventListener("click", ()=>{
+  // choose a random meadow frog (not the player) as the next avatar
+  if(meadow.players.length>1){
+    const pick = meadow.players[1 + Math.floor(Math.random()*(meadow.players.length-1))];
+    nextAvatar = {color: pick.color, pattern: pick.pattern, rainbow: nextAvatar.rainbow};
+    localStorage.setItem("latinFrogAvatar", JSON.stringify(nextAvatar));
+  }
+  // increment runs and unlock rainbow after 5 (persist)
+  playthroughs = (parseInt(localStorage.getItem("latinFrogRuns")||"0",10) + 1);
+  localStorage.setItem("latinFrogRuns", String(playthroughs));
+  if(playthroughs>=5){ nextAvatar.rainbow = true; localStorage.setItem("latinFrogAvatar", JSON.stringify(nextAvatar)); }
+  winOverlay.style.display = "none";
+  phase = PHASE_BRIDGES;
+  restartRun();
+});
+function showToast(msg, ms=2500){ const el=document.getElementById("toast"); el.textContent=msg; el.style.display="block"; clearTimeout(showToast._t); showToast._t=setTimeout(()=>{el.style.display="none";}, ms); }
+
+/***********************
+ * AUDIO — gentler sounds
+ ***********************/
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+const ac = new AudioCtx();
+function beep(freq, dur=0.12, type="sine", gain=0.08){
+  const o = ac.createOscillator(); const g = ac.createGain();
+  o.type = type; o.frequency.value = freq; g.gain.value = gain;
+  o.connect(g).connect(ac.destination);
+  const t = ac.currentTime;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(gain, t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.start(); o.stop(t+dur);
+}
+function chime(){ // pleasant triad
+  beep(880,0.14,"sine",0.06); setTimeout(()=>beep(1174,0.12,"sine",0.05),60); setTimeout(()=>beep(1320,0.10,"sine",0.04),110);
+}
+function plop(){ // soft down-swoop
+  const o = ac.createOscillator(); const g = ac.createGain();
+  o.type="triangle"; g.gain.value=0.08; o.connect(g).connect(ac.destination);
+  const t = ac.currentTime;
+  o.frequency.setValueAtTime(340,t);
+  o.frequency.exponentialRampToValueAtTime(120,t+0.22);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.linearRampToValueAtTime(0.08,t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+0.25);
+  o.start(); o.stop(t+0.26);
+}
+
+/***********************
+ * INPUT: keyboard + touch + click
+ ***********************/
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+// selection controls (bridges)
+window.addEventListener("keydown", (e)=>{
+  if(phase!==PHASE_BRIDGES) return;
+  const k=e.key;
+  if(["ArrowLeft","a","A"].includes(k)){ selectedCol = clamp(selectedCol-1, 0, TILE_COLS-1); e.preventDefault(); }
+  if(["ArrowRight","d","D"].includes(k)){ selectedCol = clamp(selectedCol+1, 0, TILE_COLS-1); e.preventDefault(); }
+  if(k==="Enter" || k===" "){ e.preventDefault(); confirmSelection(); }
+});
+
+// click confirm on row
+canvas.addEventListener("click", (e)=>{
+  if(phase!==PHASE_BRIDGES || !bridge) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left);
+  const y = (e.clientY - rect.top);
+  for(let c=0;c<TILE_COLS;c++){
+    const {x:xc,y:yc, half} = getTileCenter(targetRow,c,true);
+    if(Math.abs(x - xc) <= half && Math.abs(y - yc) <= half){ selectedCol=c; confirmSelection(); return; }
+  }
+});
+
+// touch for selection & meadow nudges + jump
+let touchStart=null;
+canvas.addEventListener("touchstart", e=>{
+  if(ac.state==="suspended") ac.resume();
+  const t = e.changedTouches[0];
+  touchStart = {x:t.clientX, y:t.clientY, time:performance.now()};
+},{passive:false});
+canvas.addEventListener("touchend", e=>{
+  const t = e.changedTouches[0]; if(!touchStart) return;
+  const dx = t.clientX - touchStart.x; const dy = t.clientY - touchStart.y;
+  const adx = Math.abs(dx), ady = Math.abs(dy);
+  const dt = performance.now()-touchStart.time;
+  const SWIPE = 24;
+  if(phase===PHASE_BRIDGES){
+    if(adx>ady && adx>SWIPE){ selectedCol = clamp(selectedCol + (dx>0?1:-1), 0, TILE_COLS-1); }
+    else if(adx<10 && ady<10 && dt<300){ confirmSelection(); }
+  } else if(phase===PHASE_MEADOW){
+    if(adx<12 && ady<12){ bigRandomJump(meadow.players[0]); } else if(adx>ady){ meadow.input.dx = Math.sign(dx); meadow.input.dy=0; } else { meadow.input.dy = Math.sign(dy); meadow.input.dx=0; }
+  }
+  touchStart=null;
+},{passive:false});
+
+/***********************
+ * WORLD & CRITTERS & RIVER DECOR
+ ***********************/
+const bugs=[]; const flowers=[]; const BUG_COUNT=24; // more lively
+const lilyPads=[]; const LILY_COUNT=14;
+const fishes=[]; // fish jump animations
+
+// meadow extras
+const bees=[]; const BEE_COUNT=14; // cheerful meadow bees
+const sparkles=[]; // little drifting pollen
+
+function initCritters(){
+  bugs.length=0; flowers.length=0; lilyPads.length=0; fishes.length=0; bees.length=0; sparkles.length=0;
+  for(let i=0;i<BUG_COUNT;i++) bugs.push({x:Math.random()*W,y:Math.random()*H,spd:0.3+Math.random()*0.6,ang:Math.random()*6.28,wob:Math.random()*6.28,r:2+Math.random()*2});
+  for(let i=0;i<LILY_COUNT;i++){ const y = RIVER_Y1 + 20 + Math.random()*(RIVER_Y2-RIVER_Y1-40); lilyPads.push({x:Math.random()*W, y, r:12+Math.random()*10, phase:Math.random()*6.28, drift:0.2+Math.random()*0.4}); }
+  for(let i=0;i<48;i++) flowers.push({x:Math.random()*W,y:Math.random()*(RIVER_Y1-24),c:[COLORS.flower1,COLORS.flower2,COLORS.flower3,COLORS.flower4][i%4],s:4+Math.random()*5,t:Math.random()*6.28});
+  for(let i=0;i<48;i++) flowers.push({x:Math.random()*W,y:RIVER_Y2+20+Math.random()*(H-(RIVER_Y2+20)),c:[COLORS.flower1,COLORS.flower2,COLORS.flower3,COLORS.flower4][i%4],s:4+Math.random()*5,t:Math.random()*6.28});
+  for(let i=0;i<BEE_COUNT;i++) bees.push({x:Math.random()*W,y:Math.random()*H,a:Math.random()*6.28,sp:0.8+Math.random()*1.2});
+  for(let i=0;i<60;i++) sparkles.push({x:Math.random()*W,y:Math.random()*H,t:Math.random()*6.28});
+}
+
+// fish spawner
+let fishTimer = 0;
+function maybeSpawnFish(dt){ fishTimer -= dt; if( fishTimer <= 0){ fishTimer = 2 + Math.random()*4; const y = RIVER_Y1 + 30 + Math.random()*(RIVER_Y2-RIVER_Y1-60); const x = Math.random()*W*0.8 + W*0.1; const dir = Math.random()<0.5?-1:1; const amp = 40 + Math.random()*50; const dur = 1 + Math.random()*0.6; fishes.push({t:0,dur,x0:x,y0:y,dir,amp}); } }
+function updateFishes(dt){ for(let i=fishes.length-1;i>=0;i--){ const f=fishes[i]; f.t+=dt; if(f.t>f.dur){ addRing(f.x0 + f.dir*60, f.y0, 14); fishes.splice(i,1);} } }
+function drawFishes(){ for(const f of fishes){ const t=f.t/f.dur; const x=f.x0 + f.dir * (t*120); const y=f.y0 - Math.sin(Math.PI*t)*f.amp; ctx.save(); ctx.translate(x,y); ctx.rotate(f.dir>0?0:Math.PI); ctx.fillStyle=COLORS.fish; ctx.beginPath(); ctx.ellipse(0,0,10,5,0,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.moveTo(-10,0); ctx.lineTo(-16,4); ctx.lineTo(-16,-4); ctx.closePath(); ctx.fill(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(4,-2,1.2,0,Math.PI*2); ctx.fill(); ctx.restore(); } }
+
+function updateLilyPads(dt){ for(const p of lilyPads){ p.phase+=dt*1.2; p.x += Math.sin(p.phase*0.6)*p.drift*0.4; if(p.x<-20) p.x=W+20; if(p.x>W+20) p.x=-20; } }
+function drawLilyPads(){ for(const p of lilyPads){ const bob = Math.sin(p.phase)*2; ctx.save(); ctx.translate(p.x, p.y + bob); ctx.fillStyle=COLORS.pad; ctx.beginPath(); ctx.ellipse(0,0,p.r,p.r*0.8,0,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,.15)"; ctx.beginPath(); ctx.arc(0,0,p.r*0.7,0,Math.PI*2); ctx.stroke(); ctx.restore(); } }
+
+/***********************
+ * BRIDGE GEN
+ ***********************/
+const TILE_SPACING_BASE = 8;
+function makeBridge(levelIdx){
+  const seq = SEQS[levelIdx];
+  const grid=[...Array(TILE_ROWS)].map(()=>[...Array(TILE_COLS)].map(()=>({ending:"",correct:false,glow:0,crack:0,dead:false})));
+  let col=Math.floor(TILE_COLS/2); const path=[];
+  for(let r=0;r<TILE_ROWS;r++){
+    if(r>0){ col = Math.max(0, Math.min(TILE_COLS-1, col + [-1,0,1][Math.floor(Math.random()*3)])); }
+    path.push({r,c:col});
+  }
+  for(let r=0;r<TILE_ROWS;r++){ const {c}=path[r]; grid[r][c].ending=seq[r]; grid[r][c].correct=true; }
+  for(let r=0;r<TILE_ROWS;r++) for(let c=0;c<TILE_COLS;c++) if(!grid[r][c].ending){ const ex=new Set([seq[r]]); grid[r][c].ending = sampleWrongEnding(ex); }
+  const riverH = (RIVER_Y2 - RIVER_Y1) - 8;
+  const spacing = Math.max(6, TILE_SPACING_BASE * (W/980));
+  const tileSize = (riverH - (TILE_ROWS-1)*spacing) / TILE_ROWS;
+  const bw = TILE_COLS*(tileSize+spacing)-spacing;
+  const x0 = (W - bw)/2;
+  const y0 = RIVER_Y1 + 4;
+  return {grid, x0, y0, tileSize, spacing, seq, declension: DECLENSION_LABELS[BRIDGE_ORDER[levelIdx]]};
+}
+function sampleWrongEnding(exclude){ const pool=[]; for(const row of ENDINGS_ROWS) for(const e of row){ if(!exclude.has(e)) pool.push(e); } return pool[Math.floor(Math.random()*pool.length)]; }
+function getTileCenter(r,c,cssCoords=false){ const s = bridge.tileSize + bridge.spacing; const x = bridge.x0 + c*s + bridge.tileSize/2; const y = bridge.y0 + r*s + bridge.tileSize/2; if(cssCoords) return {x,y,half:bridge.tileSize/2}; return {x:x*DPR,y:y*DPR,half:bridge.tileSize/2*DPR}; }
+
+/***********************
+ * FROG STATE & SELECTION FLOW (bridges)
+ ***********************/
+const frog={x:0,y:0,onBridge:false,jumping:false,jT:0,jFrom:{x:0,y:0},jTo:{x:0,y:0},lives:LIVES_PER_BRIDGE,color:nextAvatar.color,pattern:nextAvatar.pattern,rainbow:!!nextAvatar.rainbow};
+
+function confirmSelection(){
+  if(!bridge || frog.jumping) return;
+  const r = targetRow; const c = selectedCol;
+  const {x,y} = getTileCenter(r,c,true);
+  startJump(x,y, ()=>{
+    const tile = bridge.grid[r][c];
+    frog.onBridge=true;
+    if(tile.correct){
+      tile.glow=1; addGlowBurst(x,y); chime();
+      if(r === TILE_ROWS-1){
+        finishBridge(true);
+      } else {
+        targetRow = r+1;
+      }
+    } else {
+      tile.crack=1; plop(); wrongStep(x,y);
+    }
+  });
+}
+
+function startJump(x,y,cb){ frog.jumping=true; frog.jT=0; frog.jFrom={x:frog.x,y:frog.y}; frog.jTo={x,y}; frog.onJumpDone=cb; }
+function updateJump(dt){ if(!frog.jumping) return; frog.jT+=dt*3.2; const t=Math.min(1,frog.jT); const e=t<0.5?2*t*t:-1+(4-2*t)*t; frog.x=frog.jFrom.x+(frog.jTo.x-frog.jFrom.x)*e; frog.y=frog.jFrom.y+(frog.jTo.y-frog.jFrom.y)*e; if(t>=1){ frog.jumping=false; frog.onJumpDone&&frog.onJumpDone(); }}
+
+function wrongStep(x,y){ addSplash(x,y); setTimeout(()=>{ frog.lives--; if(frog.lives<=0) finishBridge(false); else resetToBridgeStart(); }, 260); }
+function resetToBridgeStart(){ frog.onBridge=false; frog.x=startX; frog.y=startY; targetRow=0; selectedCol=START_COL; }
+
+/***********************
+ * BRIDGE FLOW
+ ***********************/
+function loadBridge(levelIdx, keepTimer=false){
+  bridge = makeBridge(levelIdx);
+  frog.lives = LIVES_PER_BRIDGE;
+  frog.color = nextAvatar.color; frog.pattern = nextAvatar.pattern; frog.rainbow = !!nextAvatar.rainbow;
+  startX = W/2; startY = bridge.y0 - bridge.tileSize/2 - 18; goalY = bridge.y0 + (bridge.tileSize+bridge.spacing)*TILE_ROWS + bridge.tileSize/2 + 18;
+  frog.x=startX; frog.y=startY; frog.onBridge=false;
+  targetRow=0; selectedCol=START_COL;
+  uiLevel.textContent = (levelIdx+1); uiLives.textContent=frog.lives;
+  if(!keepTimer) runStartTime = performance.now();
+  // Rainbow unlock banner (first time only when starting a run with rainbow avatar)
+  if(levelIdx===0 && frog.rainbow && !rainbowShown){ triggerRainbowBanner(); rainbowShown=true; localStorage.setItem("latinRainbowShown","true"); }
+}
+function finishBridge(success){ if(success){ level++; if(level>=TOTAL_BRIDGES){ enterMeadow(); } else { loadBridge(level,true); } } else { loadBridge(level,true); } }
+function restartRun(){ phase=PHASE_BRIDGES; level=0; runStartTime=performance.now(); loadBridge(0,false); }
+function updateTimer(){ const t=(performance.now()-runStartTime)/1000; uiTime.textContent=t.toFixed(1); uiLives.textContent=frog.lives; uiBest.textContent=(best? best.toFixed(1)+"s":"—"); }
+
+/***********************
+ * MEADOW FINALE (interactive)
+ ***********************/
+const MEADOW = { players:[], t:0, bannerT:0, input:{left:false,right:false,up:false,down:false,dx:0,dy:0}, butterflies:[] };
+let meadow = MEADOW;
+
+function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function makeFrog(x,y,opts={}){
+  return {
+    x,y, vx:0, vy:0, r:18,
+    color: opts.color||"#3aa34a",
+    pattern: opts.pattern||"none", // "spots" | "stripes" | "band"
+    ai: opts.ai||false,
+    hop: 0,
+    hopDur: 0,
+    hopLeft: 0,
+    hopH: 0
+  };
+}
+
+const FROG_COLORS = ["#3aa34a","#60c060","#7dbb3f","#4db6ac","#9575cd","#ff8a65","#f06292"];
+const FROG_PATTERNS = ["none","spots","stripes","band"];
+
+function enterMeadow(){
+  phase = PHASE_MEADOW;
+  lastRunElapsed = (performance.now()-runStartTime)/1000;
+  if(!best||lastRunElapsed<best){best=lastRunElapsed; localStorage.setItem("latinFrogBest", String(best));}
+  meadow = { players:[], t:0, bannerT:0, input:{left:false,right:false,up:false,down:false,dx:0,dy:0}, butterflies:[] };
+  const player = makeFrog(-40, H*0.7, {color:nextAvatar.color, pattern:nextAvatar.pattern});
+  player.vx = 180; meadow.players.push(player);
+  const aiCount = 8; // more frogs for joy
+  for(let i=0;i<aiCount;i++){
+    const f = makeFrog(W*0.3 + Math.random()*W*0.6, H*0.50 + Math.random()*H*0.35, {
+      color: rand(FROG_COLORS), pattern: rand(FROG_PATTERNS), ai:true
+    });
+    f.vx = (Math.random()*2-1)*160; f.vy=(Math.random()*2-1)*160; meadow.players.push(f);
+  }
+  for(let i=0;i<28;i++) meadow.butterflies.push({x:Math.random()*W,y:Math.random()*H, a:Math.random()*6.28, sp:0.9+Math.random()*1.2});
+  winOverlay.style.display = "none";
+}
+
+// keyboard for meadow: Enter = big jump
+const held = new Set();
+window.addEventListener("keydown", (e)=>{
+  if(phase!==PHASE_MEADOW) return; const k=e.key.length===1? e.key.toLowerCase(): e.key; held.add(k);
+  if(k==="Enter"||k===" "){ bigRandomJump(meadow.players[0]); e.preventDefault(); }
+});
+window.addEventListener("keyup", (e)=>{ if(phase!==PHASE_MEADOW) return; const k=e.key.length===1? e.key.toLowerCase(): e.key; held.delete(k); });
+
+function bigRandomJump(f){ if(!f) return; const a = Math.random()*Math.PI*2; const sp = 360 + Math.random()*180; f.vx = Math.cos(a)*sp; f.vy = Math.sin(a)*sp; f.hopDur = 0.6 + Math.random()*0.2; f.hopLeft = f.hopDur; f.hopH = 36 + Math.random()*28; addRing(f.x,f.y,18); addGlowBurst(f.x,f.y,"#ffffff"); }
+
+function updateMeadow(dt){
+  meadow.t += dt;
+  const p = meadow.players[0];
+  if(p){
+    const ax = (held.has("ArrowRight")||held.has("d")||meadow.input.dx>0) - (held.has("ArrowLeft")||held.has("a")||meadow.input.dx<0);
+    const ay = (held.has("ArrowDown")||held.has("s")||meadow.input.dy>0) - (held.has("ArrowUp")||held.has("w")||meadow.input.dy<0);
+    const speed = 240;
+    if(meadow.t>0.8){ p.vx += ax*speed*dt; p.vy += ay*speed*dt; } else { p.vx = 180; }
+    p.vx *= 0.90; p.vy *= 0.90;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.x = clamp(p.x, 20, W-20); p.y = clamp(p.y, 20, H-20);
+    p.hop += (Math.abs(p.vx)+Math.abs(p.vy))*0.02*dt + 3.2*dt;
+    if(p.hopLeft>0) p.hopLeft -= dt;
+  }
+  // AI frogs: frequent bouncy impulses
+  for(let i=1;i<meadow.players.length;i++){
+    const f = meadow.players[i];
+    if(f.hopLeft<=0 && Math.random()<0.08){ f.hopDur = 0.45 + Math.random()*0.25; f.hopLeft = f.hopDur; f.hopH = 28 + Math.random()*24; const a = Math.random()*Math.PI*2; const sp = 180 + Math.random()*220; f.vx += Math.cos(a)*sp; f.vy += Math.sin(a)*sp; addRing(f.x,f.y,12); }
+    f.vx *= 0.90; f.vy *= 0.90; f.x += f.vx*dt; f.y += f.vy*dt; f.x=clamp(f.x,20,W-20); f.y=clamp(f.y,20,H-20);
+    f.hop += (Math.abs(f.vx)+Math.abs(f.vy))*0.02*dt + 2.8*dt; if(f.hopLeft>0) f.hopLeft-=dt;
+  }
+  // soft collisions
+  for(let i=0;i<meadow.players.length;i++) for(let j=i+1;j<meadow.players.length;j++){
+    const A = meadow.players[i], B = meadow.players[j];
+    const dx = B.x-A.x, dy = B.y-A.y; const dist = Math.hypot(dx,dy); const minD = A.r + B.r;
+    if(dist>0 && dist < minD){ const nx = dx/dist, ny = dy/dist; const overlap = (minD - dist); A.x -= nx*overlap*0.6; A.y -= ny*overlap*0.6; B.x += nx*overlap*0.6; B.y += ny*overlap*0.6; const avn = A.vx*nx + A.vy*ny; const bvn = B.vx*nx + B.vy*ny; const diff = bvn - avn; A.vx += diff*nx; A.vy += diff*ny; B.vx -= diff*nx; B.vy -= diff*ny; }
+  }
+  // butterflies drift
+  for(const bt of meadow.butterflies){ bt.a += (0.9+Math.random()*0.4)*dt; bt.x += Math.cos(bt.a)*bt.sp*20*dt; bt.y += Math.sin(bt.a*1.3)*bt.sp*18*dt; if(bt.x<0) bt.x=W; if(bt.x>W) bt.x=0; if(bt.y<0) bt.y=H; if(bt.y>H) bt.y=0; }
+  // bees figure-eight
+  for(const b of bees){ b.a += b.sp*dt; const R=18; const x0=b.x, y0=b.y; b.x = x0 + Math.cos(b.a)*R*1.4; b.y = y0 + Math.sin(2*b.a)*R*0.8; }
+  // pollen sparkles
+  for(const s of sparkles){ s.t+=dt; s.y += Math.sin(s.t*2)*0.3; s.x += Math.cos(s.t*1.7)*0.2; if(s.x<0) s.x=W; if(s.x>W) s.x=0; if(s.y<0) s.y=H; if(s.y>H) s.y=0; }
+  if(meadow.t>18){ meadow.bannerT = Math.min(1, meadow.bannerT + dt*0.3); finalTimeEl.textContent = lastRunElapsed.toFixed(1) + "s"; winOverlay.style.display = "inline-flex"; }
+}
+
+function drawMeadowBackground(time){
+  const g1 = ctx.createLinearGradient(0,0,0,H); g1.addColorStop(0,COLORS.meadow1); g1.addColorStop(1,COLORS.meadow2);
+  ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+  // wind bands
+  ctx.save(); ctx.globalAlpha=0.12; ctx.fillStyle="#fff"; for(let y=20;y<H;y+=24){ const off=Math.sin(time*0.0013 + y*0.02)*10; ctx.fillRect(off,y,W-2*Math.abs(off),2);} ctx.restore();
+  // flowers carpet
+  for(const f of flowers){ const sway=Math.sin(time*0.003+f.t)*2; ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(sway*0.03); ctx.strokeStyle="#2f6"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,10+f.s*2); ctx.stroke(); ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(0,0,f.s,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+  // sparkles
+  ctx.save(); ctx.globalAlpha=0.6; ctx.fillStyle="rgba(255,255,255,0.8)"; for(const s of sparkles){ ctx.fillRect(s.x,s.y,1.5,1.5);} ctx.restore();
+  // bees
+  for(const b of bees){ ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(Math.sin(b.a)*0.6); ctx.fillStyle="#ffe066"; ctx.beginPath(); ctx.ellipse(0,0,6,4,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle="#000"; ctx.fillRect(-3,-1,6,2); ctx.restore(); }
+}
+
+function drawButterflies(){
+  ctx.save();
+  for(const bt of meadow.butterflies){
+    ctx.translate(bt.x,bt.y); ctx.rotate(Math.sin(bt.a)*0.3);
+    ctx.fillStyle="rgba(255,255,255,0.9)";
+    ctx.beginPath(); ctx.ellipse(-3,0,4,2,0,0,Math.PI*2); ctx.ellipse(3,0,4,2,0,0,Math.PI*2); ctx.fill();
+    ctx.setTransform(1,0,0,1,0,0);
+  }
+  ctx.restore();
+}
+
+function drawFrogEntity(f){
+  const hopPhase = (f.hopDur>0) ? (1 - Math.max(0,f.hopLeft)/f.hopDur) : 0; // 0..1
+  const hopLift = Math.sin(hopPhase*Math.PI) * (f.hopH||0);
+  const hop = (Math.sin(f.hop*6)+1)*0.5; // idle bounce
+  const sx = 1 + hop*0.18, sy = 1 - hop*0.18;
+  ctx.save(); ctx.translate(f.x, f.y - hopLift); ctx.scale(sx,sy);
+  ctx.globalAlpha=0.25; ctx.fillStyle="#000"; ctx.beginPath(); ctx.ellipse(0,12,18,6,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.strokeStyle="#2b7c35"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-14,8); ctx.lineTo(-20,16); ctx.moveTo(14,8); ctx.lineTo(20,16); ctx.stroke();
+  ctx.fillStyle=f.color; ctx.beginPath(); ctx.ellipse(0,0,20,14,0,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=0.5; ctx.fillStyle="#000";
+  if(f.pattern==="spots"){ for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ ctx.beginPath(); ctx.arc(i*7 + (j%2?3:0), j*5, 3, 0, Math.PI*2); ctx.fill(); } }
+  else if(f.pattern==="stripes"){ for(let i=-16;i<=16;i+=6){ ctx.fillRect(i,-14,3,28); } }
+  else if(f.pattern==="band"){ ctx.beginPath(); ctx.ellipse(0,0,20,14,0,0,Math.PI*2); ctx.clip(); ctx.globalAlpha=0.35; ctx.fillRect(-22,-4,44,8); }
+  ctx.globalAlpha=1;
+  ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(-8,-10,4,0,Math.PI*2); ctx.arc(8,-10,4,0,Math.PI*2); ctx.fill(); ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(-8,-10,1.8,0,Math.PI*2); ctx.arc(8,-10,1.8,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-12,6-hop*4); ctx.lineTo(-18,10-hop*2); ctx.moveTo(12,6-hop*4); ctx.lineTo(18,10-hop*2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawMeadowOverlay(){
+  if(meadow.bannerT>0){
+    ctx.save(); ctx.globalAlpha=meadow.bannerT; ctx.fillStyle="rgba(255,255,255,0.9)"; ctx.fillRect(W*0.22,H*0.06,W*0.56,66); ctx.fillStyle="#234"; ctx.font="bold 28px ui-sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("You Win! Enjoy the meadow 🏆", W/2, H*0.06+33); ctx.restore();
+  }
+}
+
+/***********************
+ * CELEBRATION: Rainbow Unlock Banner + Confetti
+ ***********************/
+let rainbowBanner = {show:false, t:0, dur:4.2};
+const confetti=[];
+function triggerRainbowBanner(){
+  rainbowBanner.show=true; rainbowBanner.t=0; confetti.length=0; // reset
+  // Burst of confetti
+  for(let i=0;i<220;i++){
+    const c = [COLORS.confetti1,COLORS.confetti2,COLORS.confetti3,COLORS.confetti4,COLORS.confetti5,COLORS.confetti6][i%6];
+    confetti.push({x:Math.random()*W, y:-20-Math.random()*40, vx:(Math.random()*2-1)*80, vy:120+Math.random()*160, rot:Math.random()*6.28, vr:(Math.random()*2-1)*4, color:c, life:3+Math.random()*2, t:0, sz:2+Math.random()*3});
+  }
+  // sparkle burst
+  for(let i=0;i<40;i++) addGlowBurst(Math.random()*W, Math.random()*H*0.5+H*0.2, "#ffffff");
+  beep(880,0.2,"sine",0.08); setTimeout(()=>beep(1174,0.18,"sine",0.07),140); setTimeout(()=>beep(1568,0.16,"sine",0.06),280);
+}
+function updateConfetti(dt){
+  for(let i=confetti.length-1;i>=0;i--){ const p=confetti[i]; p.t+=dt; p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 240*dt; p.rot += p.vr*dt; if(p.t>p.life){ confetti.splice(i,1);} }
+}
+function drawConfetti(){
+  for(const p of confetti){ ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.fillStyle=p.color; ctx.fillRect(-p.sz,-p.sz,p.sz*2,p.sz*2); ctx.restore(); }
+}
+function drawRainbowBanner(){
+  if(!rainbowBanner.show) return;
+  rainbowBanner.t += 1/60; // roughly frame-based; dt not critical for text fade
+  updateConfetti(1/60);
+  const a = Math.min(1, rainbowBanner.t/0.6);
+  ctx.save(); ctx.globalAlpha=a; ctx.fillStyle="rgba(0,0,0,0.35)"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="rgba(255,255,255,0.96)"; const bw=W*0.8, bh=100; ctx.fillRect((W-bw)/2, H*0.2, bw, bh);
+  const g=ctx.createLinearGradient(W*0.1,0,W*0.9,0); g.addColorStop(0,"#ff5f6d"); g.addColorStop(0.2,"#ffc371"); g.addColorStop(0.4,"#fff176"); g.addColorStop(0.6,"#7cf6a3"); g.addColorStop(0.8,"#64b5f6"); g.addColorStop(1,"#ba68c8");
+  ctx.fillStyle=g; ctx.font="900 36px ui-sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText("YOU UNLOCKED RAINBOW FROG!", W/2, H*0.2 + bh/2);
+  ctx.restore();
+  drawConfetti();
+  if(rainbowBanner.t>rainbowBanner.dur){ rainbowBanner.show=false; }
+}
+
+/***********************
+ * PARTICLES & RENDER (shared)
+ ***********************/
+const particles=[];
+function addSplash(x,y,color=COLORS.splash){ for(let i=0;i<12;i++) particles.push({x,y,vx:(Math.random()*2-1)*1.6,vy:-Math.random()*2-1,g:0.08,life:0.8,t:0,color}); addRing(x,y,10); }
+function addGlowBurst(x,y,color=COLORS.tileGlow){ for(let i=0;i<10;i++){ const a=Math.random()*6.28, sp=1+Math.random()*2; particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,g:0.02,life:0.5,t:0,color}); }}
+function addRing(x,y,r0){ particles.push({ring:true,x,y,r:r0,life:0.6,t:0}); }
+function drawParticles(dt){ for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.t+=dt; if(p.ring){ const a=Math.max(0,1-p.t/p.life); ctx.save(); ctx.globalAlpha=a; ctx.strokeStyle=COLORS.splash; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(p.x,p.y,p.r+p.t*30,0,Math.PI*2); ctx.stroke(); ctx.restore(); if(p.t>=p.life) particles.splice(i,1); continue; } p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; const a=Math.max(0,1-p.t/p.life); ctx.globalAlpha=a; ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,2.4,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; if(p.t>=p.life) particles.splice(i,1);} }
+
+/***********************
+ * DRAW — BRIDGES SCENE
+ ***********************/
+function drawRiver(time){
+  const grad = ctx.createLinearGradient(0,RIVER_Y1,0,RIVER_Y2); grad.addColorStop(0,COLORS.river1); grad.addColorStop(1,COLORS.river2);
+  ctx.fillStyle=grad; ctx.fillRect(0,RIVER_Y1,W,RIVER_Y2-RIVER_Y1);
+  ctx.fillStyle="rgba(0,0,0,.08)"; ctx.fillRect(0,RIVER_Y1-2,W,2); ctx.fillRect(0,RIVER_Y2,W,2);
+  ctx.save(); ctx.globalAlpha=0.15; ctx.fillStyle="#fff"; for(let y=RIVER_Y1+10;y<RIVER_Y2-10;y+=22){ const off=Math.sin(performance.now()*0.0009 + y*0.002)*7; ctx.fillRect(off,y,W-2*Math.abs(off),2);} ctx.restore();
+}
+function drawFlowers(time){ for(const f of flowers){ const sway=Math.sin(time*0.003+f.t)*2; ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(sway*0.03); ctx.strokeStyle="#2f6"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,10+f.s*2); ctx.stroke(); ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(0,0,f.s,0,Math.PI*2); ctx.fill(); ctx.restore(); } }
+function drawBugs(time){ for(const b of bugs){ b.wob+=0.04; b.ang+=(Math.random()*0.5-0.25)*0.2; b.x+=Math.cos(b.ang)*b.spd; b.y+=Math.sin(b.ang)*b.spd + Math.sin(b.wob)*0.2; if(b.x<0) b.x=W; if(b.x>W) b.x=0; if(b.y<0) b.y=H; if(b.y>H) b.y=0; ctx.fillStyle=COLORS.bug; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=0.3; ctx.beginPath(); ctx.arc(b.x,b.y,b.r+2,0,Math.PI*2); ctx.fillStyle = "#fffaad"; ctx.fill(); ctx.globalAlpha=1; } }
+
+function drawBridge(){
+  if(!bridge) return;
+  const pad=18;
+  const bw=TILE_COLS*(bridge.tileSize+bridge.spacing)-bridge.spacing;
+  const bh=TILE_ROWS*(bridge.tileSize+bridge.spacing)-bridge.spacing;
+  const bx=bridge.x0-pad, by=bridge.y0-pad;
+  ctx.fillStyle=COLORS.bridgeShadow; ctx.globalAlpha=0.22; ctx.fillRect(bx+6,by+8 + Math.sin(performance.now()*0.002)*2,bw+pad*2,bh+pad*2); ctx.globalAlpha=1;
+  ctx.fillStyle=COLORS.bridgeEdge; ctx.fillRect(bx,by,bw+pad*2,bh+pad*2);
+  ctx.fillStyle=COLORS.bridge; ctx.fillRect(bx+6,by+6,bw+pad*2-12,bh+pad*2-12);
+  const postW=10, postH=18; ctx.fillStyle=COLORS.post;
+  for(let r=0;r<=TILE_ROWS;r+=2){ const y=bridge.y0 + r*(bridge.tileSize+bridge.spacing) - bridge.spacing/2; ctx.fillRect(bx-6,y,postW,postH); ctx.fillRect(bx+bw+pad*2- postW+6,y,postW,postH); }
+  ctx.strokeStyle=COLORS.rope; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(bx+4,by+6); ctx.quadraticCurveTo(bx+bw/2,by-16,bx+bw+pad*2-4,by+6); ctx.moveTo(bx+4,by+bh+pad*2-6); ctx.quadraticCurveTo(bx+bw/2,by+bh+pad*2+16,bx+bw+pad*2-4,by+bh+pad*2-6); ctx.stroke();
+  ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.font=`${Math.max(18, bridge.tileSize*0.46)}px ui-sans-serif`;
+  for(let r=0;r<TILE_ROWS;r++) for(let c=0;c<TILE_COLS;c++){
+    const tile=bridge.grid[r][c]; const x=bridge.x0 + c*(bridge.tileSize+bridge.spacing); const y=bridge.y0 + r*(bridge.tileSize+bridge.spacing);
+    ctx.fillStyle = tile.dead? "#999" : COLORS.plank; ctx.fillRect(x,y,bridge.tileSize,bridge.tileSize);
+    ctx.strokeStyle=COLORS.plankLine; ctx.lineWidth=1; for(let i=1;i<=3;i++){ const py=y+i*(bridge.tileSize/4); ctx.beginPath(); ctx.moveTo(x+2,py); ctx.lineTo(x+bridge.tileSize-2,py); ctx.stroke(); }
+    ctx.fillStyle="rgba(0,0,0,.15)"; ctx.beginPath(); ctx.arc(x+6,y+6,1.6,0,Math.PI*2); ctx.arc(x+bridge.tileSize-6,y+6,1.6,0,Math.PI*2); ctx.arc(x+6,y+bridge.tileSize-6,1.6,0,Math.PI*2); ctx.arc(x+bridge.tileSize-6,y+bridge.tileSize-6,1.6,0,Math.PI*2); ctx.fill();
+    const padIn = 6; const panelR = 8; ctx.fillStyle=COLORS.tilePanel; roundRect(x+padIn,y+padIn,bridge.tileSize-padIn*2,bridge.tileSize-padIn*2,panelR,true,false);
+    if(tile.glow>0){ ctx.save(); ctx.shadowColor=COLORS.tileGlow; ctx.shadowBlur=18*tile.glow; ctx.fillStyle="rgba(255,255,255,.01)"; ctx.fillRect(x,y,bridge.tileSize,bridge.tileSize); ctx.restore(); tile.glow=Math.max(0,tile.glow-0.02); }
+    if(tile.crack>0){ const k=tile.crack; ctx.strokeStyle="#333"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x+bridge.tileSize*0.2,y+bridge.tileSize*0.2); ctx.lineTo(x+bridge.tileSize*0.8,y+bridge.tileSize*0.8); ctx.moveTo(x+bridge.tileSize*0.8,y+bridge.tileSize*0.2); ctx.lineTo(x+bridge.tileSize*0.2,y+bridge.tileSize*0.8); ctx.stroke(); tile.crack=Math.max(0,k-0.03); if(tile.crack===0) tile.dead=true; }
+    // text is large/high contrast for readability
+    ctx.fillStyle=COLORS.tileText; ctx.shadowColor="rgba(0,0,0,0.2)"; ctx.shadowBlur=0; ctx.shadowOffsetY=1; fitText(tile.ending, x+bridge.tileSize/2, y+bridge.tileSize/2, bridge.tileSize*0.8); ctx.shadowColor="transparent";
+  }
+  if(targetRow>=0 && targetRow<TILE_ROWS){ const {x,y,half} = getTileCenter(targetRow, selectedCol, true); ctx.save(); ctx.strokeStyle = COLORS.accent; ctx.lineWidth = 4; ctx.setLineDash([10,6]); ctx.strokeRect(x-half-2, y-half-2, (half*2)+4, (half*2)+4); ctx.setLineDash([]); ctx.restore(); }
+  ctx.fillStyle=COLORS.tileText; ctx.font=`bold ${Math.max(18, bridge.tileSize*0.48)}px ui-sans-serif`; ctx.fillText(bridge.declension+" Declension", W/2, bridge.y0-32);
+}
+
+function roundRect(x,y,w,h,r,fill,stroke){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); if(stroke) ctx.stroke(); }
+function fitText(text,x,y,maxW){ let size=parseInt(ctx.font.match(/(\d+)px/)[1]); ctx.font=`${size}px ui-sans-serif`; while(ctx.measureText(text).width>maxW && size>14){ size--; ctx.font=`${size}px ui-sans-serif`; } ctx.fillText(text,x,y); }
+
+function drawFrog(){
+  const hop=frog.jumping? Math.sin(Math.min(1,frog.jT)*Math.PI):0; const sx=1+hop*0.12, sy=1-hop*0.22; const baseX=22, baseY=16;
+  ctx.save(); ctx.translate(frog.x,frog.y); ctx.scale(sx,sy);
+  // body fill (rainbow unlock after 5 runs)
+  if(frog.rainbow){ const g=ctx.createLinearGradient(-22,0,22,0); g.addColorStop(0,"#ff5f6d"); g.addColorStop(0.2,"#ffc371"); g.addColorStop(0.4,"#fff176"); g.addColorStop(0.6,"#7cf6a3"); g.addColorStop(0.8,"#64b5f6"); g.addColorStop(1,"#ba68c8"); ctx.fillStyle=g; }
+  else { ctx.fillStyle=frog.color; }
+  ctx.beginPath(); ctx.ellipse(0,0,baseX,baseY,0,0,Math.PI*2); ctx.fill();
+  // simple pattern on bridge frog
+  ctx.globalAlpha=0.35; ctx.fillStyle="#000";
+  if(frog.pattern==="spots"){ for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ ctx.beginPath(); ctx.arc(i*8 + (j%2?4:0), j*6, 3, 0, Math.PI*2); ctx.fill(); } }
+  else if(frog.pattern==="stripes"){ for(let i=-18;i<=18;i+=7){ ctx.fillRect(i,-14,3,28); } }
+  else if(frog.pattern==="band"){ ctx.fillRect(-24,-4,48,8); }
+  ctx.globalAlpha=1;
+  ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(-9,-12,5,0,Math.PI*2); ctx.arc(9,-12,5,0,Math.PI*2); ctx.fill(); ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(-9,-12,2.5,0,Math.PI*2); ctx.arc(9,-12,2.5,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle="#2b7c35"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-14,10); ctx.lineTo(-20,18); ctx.moveTo(14,10); ctx.lineTo(20,18); ctx.stroke();
+  ctx.restore();
+}
+
+/***********************
+ * SELF-TESTS
+ ***********************/
+function runSelfTests(){
+  let ok = true; const errs=[];
+  if(ENDINGS_ROWS.length!==10) { ok=false; errs.push(`Expected 10 rows of endings, got ${ENDINGS_ROWS.length}`); }
+  for(let i=0;i<ENDINGS_ROWS.length;i++) if(ENDINGS_ROWS[i].length!==8){ ok=false; errs.push(`Row ${i} expected 8 declension entries, got ${ENDINGS_ROWS[i].length}`); }
+  for(let d=0; d<8; d++){ const seq = SEQS[d]; if(seq.length!==10){ ok=false; errs.push(`Declension ${d} sequence length ${seq.length} != 10`); } for(let r=0;r<10;r++){ if(typeof seq[r]!=="string"){ ok=false; errs.push(`Bad type at declension ${d}, row ${r}`);} } }
+  const tmpBridge = makeBridge(0);
+  for(let r=0;r<TILE_ROWS;r++){ const row = tmpBridge.grid[r]; const count = row.reduce((n,t)=>n+(t.correct?1:0),0); if(count!==1){ ok=false; errs.push(`Row ${r} has ${count} correct tiles (expected 1)`); } }
+  selectedCol=0; selectedCol=clamp(selectedCol-1,0,TILE_COLS-1); if(selectedCol!==0){ ok=false; errs.push("clamp/selection underflow"); }
+  selectedCol=TILE_COLS-1; selectedCol=clamp(selectedCol+1,0,TILE_COLS-1); if(selectedCol!==TILE_COLS-1){ ok=false; errs.push("clamp/selection overflow"); }
+  if(!ok){ console.group("%cSelf-tests failed","color:#b00020;font-weight:bold"); errs.forEach(e=>console.error(e)); console.groupEnd(); showToast("Self-tests failed — see console for details"); }
+  else { console.log("%cSelf-tests passed","color:#0a7a2a;font-weight:bold"); }
+}
+
+/***********************
+ * MAIN LOOP
+ ***********************/
+initCritters();
+restartRun();
+runSelfTests();
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(0.033,(now-last)/1000); last=now;
+  if(phase===PHASE_BRIDGES){
+    const gGrad=ctx.createLinearGradient(0,0,0,H); gGrad.addColorStop(0,COLORS.grass1); gGrad.addColorStop(1,COLORS.grass2);
+    ctx.fillStyle=gGrad; ctx.fillRect(0,0,W,H);
+    drawFlowers(now); drawRiver(now); updateLilyPads(dt); drawLilyPads(); maybeSpawnFish(dt); updateFishes(dt); drawFishes(); drawBridge(); drawBugs(now); updateJump(dt); drawFrog(); drawParticles(dt); drawRainbowBanner(); updateTimer();
+  } else if(phase===PHASE_MEADOW){
+    drawMeadowBackground(now);
+    updateMeadow(dt);
+    drawButterflies();
+    for(const f of meadow.players){ drawFrogEntity(f); }
+    drawParticles(dt);
+    drawMeadowOverlay();
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+addEventListener("pointerdown", ()=>{ if(ac.state==="suspended") ac.resume(); }, {once:true});
+document.addEventListener("visibilitychange", ()=>{ if(document.hidden && ac.state==="running"){ ac.suspend(); } else if(!document.hidden && ac.state==="suspended"){ ac.resume(); }});
+window.addEventListener("error", (e)=>{ showToast("Error: "+(e.message||"Unknown")); });
+
+/***********************
+ * STARTUP HELPERS
+ ***********************/
+function restartRun(){ phase=PHASE_BRIDGES; level=0; runStartTime=performance.now(); loadBridge(0,false); }
+
+</script>
+</body>
+</html>
