@@ -31,6 +31,16 @@
   #winOverlay{position:absolute;top:14%;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.92);border:2px solid #cfe9ff;border-radius:14px;padding:10px 14px;display:none;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.15)}
   #winOverlay .time{color:#16324f;font-weight:700;margin-right:8px}
   @media (max-width:700px){header h1{font-size:16px} button{padding:8px 12px}}
+  @media (max-width:480px){
+  #wrap{ gap:0; }
+  header{
+    position:absolute; top:4px; left:0; right:0;
+    display:flex; justify-content:center; z-index:5;
+    background:transparent; pointer-events:none;
+  }
+  header .pill{ pointer-events:auto; } /* still tappable */
+  footer{ display:none; }              /* hide legend to free space */
+}
 </style>
 </head>
 <body>
@@ -152,20 +162,20 @@ function resize(){
   const header = document.querySelector("header");
   const footer = document.querySelector("footer");
 
-  const padX = 24;           // matches wrap's side spacing
-  const maxW = 980;
-  const wrapW = (wrapEl && wrapEl.clientWidth) ? wrapEl.clientWidth : window.innerWidth;
-  const availW = Math.max(320, Math.min(maxW, wrapW - padX));
+ const padX = 24;
+const maxW = 980;
+const wrapW = (wrapEl && wrapEl.clientWidth) ? wrapEl.clientWidth : window.innerWidth;
+const availW = Math.max(320, Math.min(maxW, wrapW - padX));
 
-  const availH = Math.max(
-    180,
-    Math.floor(
-      window.innerHeight
-      - (header ? header.offsetHeight : 0)
-      - (footer ? footer.offsetHeight : 0)
-      - 16 // breathing room
-    )
-  );
+// On small screens, ignore header/footer height so the canvas can go full-bleed
+const isSmall = window.innerWidth <= 480;
+const chromeH = isSmall ? 0 : (
+  (header ? header.offsetHeight : 0) +
+  (footer ? footer.offsetHeight : 0) + 16
+);
+
+const availH = Math.max(220, Math.floor(window.innerHeight - chromeH));
+
 
   // Largest exact 16:9 that fits inside availW x availH
   let cssW = Math.min(availW, Math.floor(availH * ratio));
@@ -186,8 +196,14 @@ function resize(){
   
   W = cssW;
   H = cssH;
+if (window.innerWidth <= 480) {
+  RIVER_Y1 = H * 0.06;
+  RIVER_Y2 = H * 0.94;
+} else {
   RIVER_Y1 = H * 0.12;
   RIVER_Y2 = H * 0.86;
+}
+
   console.log("[resize] W,H:", W, H, "river:", RIVER_Y1.toFixed(1), "→", RIVER_Y2.toFixed(1));
 
   // Re-seed critters so pads/flowers fit new river/meadow bounds
@@ -366,7 +382,11 @@ function makeBridge(levelIdx){
   for(let r=0;r<TILE_ROWS;r++){ const {c}=path[r]; grid[r][c].ending=seq[r]; grid[r][c].correct=true; }
   for(let r=0;r<TILE_ROWS;r++) for(let c=0;c<TILE_COLS;c++) if(!grid[r][c].ending){ const ex=new Set([seq[r]]); grid[r][c].ending = sampleWrongEnding(ex); }
   const riverH = (RIVER_Y2 - RIVER_Y1) - 8;
-  const spacing = Math.max(6, TILE_SPACING_BASE * (W/980));
+const small = W < 500;
+const spacing = Math.max(
+  small ? 4 : 6,
+  (small ? TILE_SPACING_BASE * 0.8 : TILE_SPACING_BASE) * (W / 980)
+);
   const tileSize = (riverH - (TILE_ROWS-1)*spacing) / TILE_ROWS;
   const bw = TILE_COLS*(tileSize+spacing)-spacing;
   const x0 = (W - bw)/2;
@@ -736,7 +756,20 @@ function drawBridge(){
 }
 
 function roundRect(x,y,w,h,r,fill,stroke){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); if(stroke) ctx.stroke(); }
-function fitText(text,x,y,maxW){ let size=parseInt(ctx.font.match(/(\d+)px/)[1]); ctx.font=`${size}px ui-sans-serif`; while(ctx.measureText(text).width>maxW && size>14){ size--; ctx.font=`${size}px ui-sans-serif`; } ctx.fillText(text,x,y); }
+function fitText(text,x,y,maxW){
+  // Start with a size tied to tile size; keep a higher floor on phones
+  const base = bridge ? bridge.tileSize : 22;
+  let size = Math.floor(base * 0.46);
+  const minSize = Math.max(16, Math.floor(base * 0.36)); // was 14; boost readability
+
+  ctx.font = `${size}px ui-sans-serif`;
+  while (ctx.measureText(text).width > maxW && size > minSize) {
+    size--;
+    ctx.font = `${size}px ui-sans-serif`;
+  }
+  ctx.fillText(text, x, y);
+}
+
 
 function drawFrog(){
   const hop=frog.jumping? Math.sin(Math.min(1,frog.jT)*Math.PI):0; const sx=1+hop*0.12, sy=1-hop*0.22; const baseX=22, baseY=16;
