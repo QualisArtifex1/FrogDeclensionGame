@@ -136,7 +136,8 @@ if (!ctx) {
   console.error("2D context failed to initialize");
   alert("Canvas 2D context failed to initialize.");
 }
-
+console.log("[init] 2D ctx OK:", !!ctx);
+  
 let DPR = 1, W = 960, H = 540;
 let RIVER_Y1 = 0, RIVER_Y2 = 0;
 let _rzRAF = 0;
@@ -177,11 +178,13 @@ function resize(){
   canvas.style.width = cssW + "px";
   canvas.style.height = cssH + "px";
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
+  console.log("[resize] css:", cssW, cssH, "px:", wPx, hPx, "DPR:", DPR);
+  
   W = cssW;
   H = cssH;
   RIVER_Y1 = H * 0.12;
   RIVER_Y2 = H * 0.86;
+  console.log("[resize] W,H:", W, H, "river:", RIVER_Y1.toFixed(1), "→", RIVER_Y2.toFixed(1));
 
   // Re-seed critters so pads/flowers fit new river/meadow bounds
   if (typeof initCritters === "function") initCritters();
@@ -426,6 +429,14 @@ function loadBridge(levelIdx, keepTimer=false){
   // Rainbow unlock banner (first time only when starting a run with rainbow avatar)
   if (levelIdx === 0 && frog.rainbow && !rainbowShown) {   triggerRainbowBanner();   rainbowShown = true; // session-only 
       }
+  console.log("[bridge] built", {
+    levelIdx,
+    declension: bridge.declension,
+    tileSize: bridge.tileSize.toFixed(2),
+    spacing: bridge.spacing.toFixed(2),
+    x0: Math.round(bridge.x0),
+    y0: Math.round(bridge.y0)
+  });
 }
 function finishBridge(success){ if(success){ level++; if(level>=TOTAL_BRIDGES){ enterMeadow(); } else { loadBridge(level,true); } } else { loadBridge(level,true); } }
 function restartRun(){ phase=PHASE_BRIDGES; level=0; runStartTime=performance.now(); loadBridge(0,false); }
@@ -764,6 +775,9 @@ runSelfTests();
 let last=performance.now();
 function loop(now){
   const dt=Math.min(0.033,(now-last)/1000); last=now;
+    if (!bridge && phase === PHASE_BRIDGES) {
+    console.log("[loop] bridge is null while in BRIDGES phase");
+  }
   if(phase===PHASE_BRIDGES){
     const gGrad=ctx.createLinearGradient(0,0,0,H); gGrad.addColorStop(0,COLORS.grass1); gGrad.addColorStop(1,COLORS.grass2);
     ctx.fillStyle=gGrad; ctx.fillRect(0,0,W,H);
@@ -787,7 +801,7 @@ requestAnimationFrame(loop);
 
 addEventListener("pointerdown", ()=>{ if(ac.state==="suspended") ac.resume(); }, {once:true});
 document.addEventListener("visibilitychange", ()=>{ if(document.hidden && ac.state==="running"){ ac.suspend(); } else if(!document.hidden && ac.state==="suspended"){ ac.resume(); }});
-window.addEventListener("error", (e)=>{ showToast("Error: "+(e.message||"Unknown")); });
+window.addEventListener("error", (e)=>{   console.error("Window error:", e.error || e.message || e);   showToast("Error: " + (e.message || "Unknown")); }); window.addEventListener("unhandledrejection", (e)=>{   console.error("Unhandled promise rejection:", e.reason);   const msg = e.reason && (e.reason.message || String(e.reason));   showToast("Error: " + (msg || "Promise rejection")); });
 
 </script>
 </body>
