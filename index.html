@@ -310,7 +310,20 @@ function getTileCenter(r,c,cssCoords=false){ const s = bridge.tileSize + bridge.
 /***********************
  * FROG STATE & SELECTION FLOW (bridges)
  ***********************/
-const frog={x:0,y:0,onBridge:false,jumping:false,jT:0,jFrom:{x:0,y:0},jTo:{x:0,y:0},lives:LIVES_PER_BRIDGE,color:nextAvatar.color,pattern:nextAvatar.pattern,rainbow:!!nextAvatar.rainbow};
+// Always start with default green frog each page load
+const frog = {
+  x: 0,
+  y: 0,
+  onBridge: false,
+  jumping: false,
+  jT: 0,
+  jFrom: { x: 0, y: 0 },
+  jTo: { x: 0, y: 0 },
+  lives: LIVES_PER_BRIDGE,
+  color: "green",     // default color
+  pattern: null,      // no pattern until earned
+  rainbow: false      // must be unlocked in one run
+};
 
 function confirmSelection(){
   if(!bridge || frog.jumping || (typeof gameOverFX !== "undefined" && gameOverFX.active)) return;
