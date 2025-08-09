@@ -177,8 +177,9 @@ const wrapW = (wrapEl && wrapEl.clientWidth) ? wrapEl.clientWidth : window.inner
 const availW = Math.max(320, Math.min(maxW, wrapW - padX));
 
 // On small screens, ignore header/footer height so the canvas can go full-bleed
-const IS_SMALL = window.innerWidth <= MOBILE_BREAKPOINT;
-const chromeH = isSmall ? 0 : (
+// On small screens, ignore header/footer height so the canvas can go full-bleed
+IS_SMALL = window.innerWidth <= MOBILE_BREAKPOINT;  // update the global
+const chromeH = IS_SMALL ? 0 : (
   (header ? header.offsetHeight : 0) +
   (footer ? footer.offsetHeight : 0) + 16
 );
@@ -796,7 +797,8 @@ const baseY = Math.round(frogBase * 0.73);
 
   ctx.save(); ctx.translate(frog.x,frog.y); ctx.scale(sx,sy);
   // body fill (rainbow unlock after 5 runs)
-  if(frog.rainbow){ const g=ctx.createLinearGradient(-22,0,22,0); g.addColorStop(0,"#ff5f6d"); g.addColorStop(0.2,"#ffc371"); g.addColorStop(0.4,"#fff176"); g.addColorStop(0.6,"#7cf6a3"); g.addColorStop(0.8,"#64b5f6"); g.addColorStop(1,"#ba68c8"); ctx.fillStyle=g; }
+  if (frog.rainbow) {
+    const g = ctx.createLinearGradient(-baseX, 0, baseX, 0); g.addColorStop(0,"#ff5f6d"); g.addColorStop(0.2,"#ffc371"); g.addColorStop(0.4,"#fff176"); g.addColorStop(0.6,"#7cf6a3"); g.addColorStop(0.8,"#64b5f6"); g.addColorStop(1,"#ba68c8"); ctx.fillStyle=g; }
   else { ctx.fillStyle=frog.color; }
   ctx.beginPath(); ctx.ellipse(0,0,baseX,baseY,0,0,Math.PI*2); ctx.fill();
   // simple pattern on bridge frog
