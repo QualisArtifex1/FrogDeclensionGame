@@ -139,6 +139,8 @@ if (!ctx) {
 console.log("[init] 2D ctx OK:", !!ctx);
   
 let DPR = 1, W = 960, H = 540;
+// don't build bridges until the bridge constants exist
+let gameReady = false;
 // runtime guard so resize() doesn't touch critters too early
 let crittersReady = false;
 let RIVER_Y1 = 0, RIVER_Y2 = 0;
@@ -191,10 +193,10 @@ function resize(){
   // Re-seed critters so pads/flowers fit new river/meadow bounds
   if (crittersReady && typeof initCritters === "function") initCritters();
 
-  // Recompute bridge geometry for the new size
-  if (typeof PHASE_BRIDGES !== "undefined" && phase === PHASE_BRIDGES) {
-    loadBridge(level, true);
-  }
+ // Recompute bridge geometry only after game is ready
+if (gameReady && phase === PHASE_BRIDGES) {
+  loadBridge(level, true);
+}
 }
 
 // Debounced resize for Android/iOS browsers
@@ -352,6 +354,7 @@ function drawLilyPads(){ for(const p of lilyPads){ const bob = Math.sin(p.phase)
  * BRIDGE GEN
  ***********************/
 const TILE_SPACING_BASE = 8;
+gameReady = true;
 function makeBridge(levelIdx){
   const seq = SEQS[levelIdx];
   const grid=[...Array(TILE_ROWS)].map(()=>[...Array(TILE_COLS)].map(()=>({ending:"",correct:false,glow:0,crack:0,dead:false})));
