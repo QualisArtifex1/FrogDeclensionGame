@@ -187,7 +187,7 @@ function resize(){
   console.log("[resize] W,H:", W, H, "river:", RIVER_Y1.toFixed(1), "→", RIVER_Y2.toFixed(1));
 
   // Re-seed critters so pads/flowers fit new river/meadow bounds
-  if (typeof initCritters === "function") initCritters();
+  if (typeof initCritters === "function" && typeof bugs !== "undefined") initCritters();
 
   // Recompute bridge geometry for the new size
   if (typeof PHASE_BRIDGES !== "undefined" && phase === PHASE_BRIDGES) {
