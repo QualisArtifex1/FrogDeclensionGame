@@ -313,7 +313,7 @@ function getTileCenter(r,c,cssCoords=false){ const s = bridge.tileSize + bridge.
 const frog={x:0,y:0,onBridge:false,jumping:false,jT:0,jFrom:{x:0,y:0},jTo:{x:0,y:0},lives:LIVES_PER_BRIDGE,color:nextAvatar.color,pattern:nextAvatar.pattern,rainbow:!!nextAvatar.rainbow};
 
 function confirmSelection(){
-  if(!bridge || frog.jumping) return;
+  if(!bridge || frog.jumping || (typeof gameOverFX !== "undefined" && gameOverFX.active)) return;
   const r = targetRow; const c = selectedCol;
   const {x,y} = getTileCenter(r,c,true);
   startJump(x,y, ()=>{
@@ -335,7 +335,7 @@ function confirmSelection(){
 function startJump(x,y,cb){ frog.jumping=true; frog.jT=0; frog.jFrom={x:frog.x,y:frog.y}; frog.jTo={x,y}; frog.onJumpDone=cb; }
 function updateJump(dt){ if(!frog.jumping) return; frog.jT+=dt*3.2; const t=Math.min(1,frog.jT); const e=t<0.5?2*t*t:-1+(4-2*t)*t; frog.x=frog.jFrom.x+(frog.jTo.x-frog.jFrom.x)*e; frog.y=frog.jFrom.y+(frog.jTo.y-frog.jFrom.y)*e; if(t>=1){ frog.jumping=false; frog.onJumpDone&&frog.onJumpDone(); }}
 
-function wrongStep(x,y){ addSplash(x,y); setTimeout(()=>{ frog.lives--; if(frog.lives<=0) finishBridge(false); else resetToBridgeStart(); }, 260); }
+function wrongStep(x,y){   addSplash(x,y);   setTimeout(()=>{     frog.lives--;     if (frog.lives <= 0) {       triggerGameOver();     } else {       resetToBridgeStart();     }   }, 260); }
 function resetToBridgeStart(){ frog.onBridge=false; frog.x=startX; frog.y=startY; targetRow=0; selectedCol=START_COL; }
 
 /***********************
@@ -529,7 +529,72 @@ function drawRainbowBanner(){
   drawConfetti();
   if(rainbowBanner.t>rainbowBanner.dur){ rainbowBanner.show=false; }
 }
+/***********************
+ * GAME OVER FADE (fade out → hold → fade in) with zooming text
+ ***********************/
+let gameOverFX = { active: false, t: 0, phase: "idle" };
 
+function triggerGameOver() {
+  gameOverFX.active = true;
+  gameOverFX.t = 0;
+  gameOverFX.phase = "fadeout";
+}
+
+function updateGameOver(dt) {
+  if (!gameOverFX.active) return;
+  gameOverFX.t += dt;
+
+  if (gameOverFX.phase === "fadeout" && gameOverFX.t >= 0.8) {
+    gameOverFX.phase = "hold";
+    gameOverFX.t = 0;
+  } else if (gameOverFX.phase === "hold" && gameOverFX.t >= 0.8) {
+    // Restart full run after the hold
+    restartRun();
+    gameOverFX.phase = "fadein";
+    gameOverFX.t = 0;
+  } else if (gameOverFX.phase === "fadein" && gameOverFX.t >= 0.8) {
+    gameOverFX.active = false;
+    gameOverFX.phase = "idle";
+    gameOverFX.t = 0;
+  }
+}
+
+function drawGameOver() {
+  if (!gameOverFX.active) return;
+
+  let alpha = 0, scale = 1;
+  if (gameOverFX.phase === "fadeout") {
+    const k = Math.min(1, gameOverFX.t / 0.8);
+    alpha = k;
+    scale = 1 + 0.5 * k; // zoom to 1.5x while fading out
+  } else if (gameOverFX.phase === "hold") {
+    alpha = 1;
+    scale = 1.5;
+  } else if (gameOverFX.phase === "fadein") {
+    const k = Math.min(1, gameOverFX.t / 0.8);
+    alpha = 1 - k;        // fade back to gameplay
+    scale = 1.5;          // keep the text at max scale while fading
+  }
+
+  // Dark veil
+  ctx.save();
+  ctx.fillStyle = `rgba(0,0,0,${alpha * 0.85})`;
+  ctx.fillRect(0, 0, W, H);
+
+  // Big zooming title
+  ctx.translate(W / 2, H / 2);
+  ctx.scale(scale, scale);
+  if (alpha > 0.1) {
+    ctx.fillStyle = "#fff";
+    ctx.font = "900 64px ui-sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("GAME OVER", 0, 0);
+  }
+  ctx.restore();
+}
+
+  
 /***********************
  * PARTICLES & RENDER (shared)
  ***********************/
@@ -637,6 +702,11 @@ function loop(now){
     drawParticles(dt);
     drawMeadowOverlay();
   }
+
+  // Game Over overlay pass (on top)
+  updateGameOver(dt);
+  drawGameOver();
+
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
