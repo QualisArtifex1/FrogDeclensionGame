@@ -132,6 +132,10 @@ let selectedCol = START_COL; // which column is currently highlighted
  ***********************/
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+if (!ctx) {
+  console.error("2D context failed to initialize");
+  alert("Canvas 2D context failed to initialize.");
+}
 
 let DPR = 1, W = 960, H = 540;
 let RIVER_Y1 = 0, RIVER_Y2 = 0;
@@ -784,11 +788,6 @@ requestAnimationFrame(loop);
 addEventListener("pointerdown", ()=>{ if(ac.state==="suspended") ac.resume(); }, {once:true});
 document.addEventListener("visibilitychange", ()=>{ if(document.hidden && ac.state==="running"){ ac.suspend(); } else if(!document.hidden && ac.state==="suspended"){ ac.resume(); }});
 window.addEventListener("error", (e)=>{ showToast("Error: "+(e.message||"Unknown")); });
-
-/***********************
- * STARTUP HELPERS
- ***********************/
-function restartRun(){ phase=PHASE_BRIDGES; level=0; runStartTime=performance.now(); loadBridge(0,false); }
 
 </script>
 </body>
