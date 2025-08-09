@@ -162,13 +162,14 @@ playAgainBtn.addEventListener("click", ()=>{
   // choose a random meadow frog (not the player) as the next avatar
   if(meadow.players.length>1){
     const pick = meadow.players[1 + Math.floor(Math.random()*(meadow.players.length-1))];
-    nextAvatar = {color: pick.color, pattern: pick.pattern, rainbow: nextAvatar.rainbow};
-    localStorage.setItem("latinFrogAvatar", JSON.stringify(nextAvatar));
-  }
-  // increment runs and unlock rainbow after 5 (persist)
-  playthroughs = (parseInt(localStorage.getItem("latinFrogRuns")||"0",10) + 1);
-  localStorage.setItem("latinFrogRuns", String(playthroughs));
-  if(playthroughs>=5){ nextAvatar.rainbow = true; localStorage.setItem("latinFrogAvatar", JSON.stringify(nextAvatar)); }
+   nextAvatar = { color: pick.color, pattern: pick.pattern, rainbow: nextAvatar.rainbow };
+
+// increment runs and unlock rainbow after 5 (session-only)
+playthroughs += 1;
+if (playthroughs >= 5) {
+  nextAvatar.rainbow = true; // no persistence; lost on refresh
+}
+
   winOverlay.style.display = "none";
   phase = PHASE_BRIDGES;
   restartRun();
@@ -365,7 +366,7 @@ function loadBridge(levelIdx, keepTimer=false){
   uiLevel.textContent = (levelIdx+1); uiLives.textContent=frog.lives;
   if(!keepTimer) runStartTime = performance.now();
   // Rainbow unlock banner (first time only when starting a run with rainbow avatar)
-  if(levelIdx===0 && frog.rainbow && !rainbowShown){ triggerRainbowBanner(); rainbowShown=true; localStorage.setItem("latinRainbowShown","true"); }
+  if (levelIdx === 0 && frog.rainbow && !rainbowShown) {   triggerRainbowBanner();   rainbowShown = true; // session-only }
 }
 function finishBridge(success){ if(success){ level++; if(level>=TOTAL_BRIDGES){ enterMeadow(); } else { loadBridge(level,true); } } else { loadBridge(level,true); } }
 function restartRun(){ phase=PHASE_BRIDGES; level=0; runStartTime=performance.now(); loadBridge(0,false); }
