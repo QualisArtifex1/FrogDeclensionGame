@@ -163,7 +163,7 @@ playAgainBtn.addEventListener("click", ()=>{
   if(meadow.players.length>1){
     const pick = meadow.players[1 + Math.floor(Math.random()*(meadow.players.length-1))];
    nextAvatar = { color: pick.color, pattern: pick.pattern, rainbow: nextAvatar.rainbow };
-
+  }
 // increment runs and unlock rainbow after 5 (session-only)
 playthroughs += 1;
 if (playthroughs >= 5) {
