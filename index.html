@@ -139,6 +139,8 @@ if (!ctx) {
 console.log("[init] 2D ctx OK:", !!ctx);
   
 let DPR = 1, W = 960, H = 540;
+// runtime guard so resize() doesn't touch critters too early
+let crittersReady = false;
 let RIVER_Y1 = 0, RIVER_Y2 = 0;
 let _rzRAF = 0;
 
@@ -187,7 +189,7 @@ function resize(){
   console.log("[resize] W,H:", W, H, "river:", RIVER_Y1.toFixed(1), "→", RIVER_Y2.toFixed(1));
 
   // Re-seed critters so pads/flowers fit new river/meadow bounds
-  if (typeof initCritters === "function" && typeof bugs !== "undefined") initCritters();
+  if (crittersReady && typeof initCritters === "function") initCritters();
 
   // Recompute bridge geometry for the new size
   if (typeof PHASE_BRIDGES !== "undefined" && phase === PHASE_BRIDGES) {
@@ -325,6 +327,7 @@ const fishes=[]; // fish jump animations
 // meadow extras
 const bees=[]; const BEE_COUNT=14; // cheerful meadow bees
 const sparkles=[]; // little drifting pollen
+crittersReady = true;
 
 function initCritters(){
   bugs.length=0; flowers.length=0; lilyPads.length=0; fishes.length=0; bees.length=0; sparkles.length=0;
