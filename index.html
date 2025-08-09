@@ -40,6 +40,12 @@
   }
   header .pill{ pointer-events:auto; } /* still tappable */
   footer{ display:none; }              /* hide legend to free space */
+  header h1{ display:none; }                  /* free space */
+.pill{ padding:4px 8px; gap:6px; font-size:12px; border-width:1px; }
+.pill b{ font-weight:700; }                 /* keep emphasis readable */
+.pill span{ white-space:nowrap; }           /* prevent wrapping */
+/* Optional: shrink the whole pill area even more */
+/* .pill{ transform: scale(.9); transform-origin: top center; } */
 }
 </style>
 </head>
@@ -89,6 +95,9 @@ const COLORS = {
   fish:"#ff7043", splash:"#9dd9ff",
   confetti1:"#ff5f6d", confetti2:"#ffc371", confetti3:"#fff176", confetti4:"#7cf6a3", confetti5:"#64b5f6", confetti6:"#ba68c8"
 };
+// --- mobile sizing helpers ---
+const MOBILE_BREAKPOINT = 480;
+let IS_SMALL = false; // updated in resize()
 
 /***********************
  * DATA & CONFIG
@@ -168,7 +177,7 @@ const wrapW = (wrapEl && wrapEl.clientWidth) ? wrapEl.clientWidth : window.inner
 const availW = Math.max(320, Math.min(maxW, wrapW - padX));
 
 // On small screens, ignore header/footer height so the canvas can go full-bleed
-const isSmall = window.innerWidth <= 480;
+const IS_SMALL = window.innerWidth <= MOBILE_BREAKPOINT;
 const chromeH = isSmall ? 0 : (
   (header ? header.offsetHeight : 0) +
   (footer ? footer.offsetHeight : 0) + 16
@@ -182,7 +191,7 @@ const availH = Math.max(220, Math.floor(window.innerHeight - chromeH));
   let cssH = Math.floor(cssW / ratio);
 
   const rawDPR = window.devicePixelRatio || 1;
-  DPR = Math.max(1, Math.min(2, rawDPR)); // cap DPR for perf
+  DPR = Math.max(1, Math.min(3, rawDPR)); // allow up to 3x on phones for sharper text
 
   const wPx = Math.max(1, Math.floor(cssW * DPR));
   const hPx = Math.max(1, Math.floor(cssH * DPR));
@@ -196,9 +205,9 @@ const availH = Math.max(220, Math.floor(window.innerHeight - chromeH));
   
   W = cssW;
   H = cssH;
-if (window.innerWidth <= 480) {
-  RIVER_Y1 = H * 0.06;
-  RIVER_Y2 = H * 0.94;
+if (IS_SMALL) {
+  RIVER_Y1 = H * 0.04;
+  RIVER_Y2 = H * 0.96;   // more vertical room for the bridge
 } else {
   RIVER_Y1 = H * 0.12;
   RIVER_Y2 = H * 0.86;
@@ -382,10 +391,9 @@ function makeBridge(levelIdx){
   for(let r=0;r<TILE_ROWS;r++){ const {c}=path[r]; grid[r][c].ending=seq[r]; grid[r][c].correct=true; }
   for(let r=0;r<TILE_ROWS;r++) for(let c=0;c<TILE_COLS;c++) if(!grid[r][c].ending){ const ex=new Set([seq[r]]); grid[r][c].ending = sampleWrongEnding(ex); }
   const riverH = (RIVER_Y2 - RIVER_Y1) - 8;
-const small = W < 500;
-const spacing = Math.max(
-  small ? 4 : 6,
-  (small ? TILE_SPACING_BASE * 0.8 : TILE_SPACING_BASE) * (W / 980)
+  const spacing = Math.max(
+  IS_SMALL ? 3 : 6,                                  // slightly tighter on phones
+  (IS_SMALL ? TILE_SPACING_BASE * 0.70 : TILE_SPACING_BASE) * (W / 980)
 );
   const tileSize = (riverH - (TILE_ROWS-1)*spacing) / TILE_ROWS;
   const bw = TILE_COLS*(tileSize+spacing)-spacing;
@@ -756,23 +764,36 @@ function drawBridge(){
 }
 
 function roundRect(x,y,w,h,r,fill,stroke){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); if(stroke) ctx.stroke(); }
-function fitText(text,x,y,maxW){
-  // Start with a size tied to tile size; keep a higher floor on phones
+function fitText(text, x, y, maxW){
+  // Base size from tile, boosted on phones
   const base = bridge ? bridge.tileSize : 22;
-  let size = Math.floor(base * 0.46);
-  const minSize = Math.max(16, Math.floor(base * 0.36)); // was 14; boost readability
+  const start = Math.floor(base * (IS_SMALL ? 0.60 : 0.46));  // bigger on phones
+  const minSize = Math.max(IS_SMALL ? 18 : 16, Math.floor(base * (IS_SMALL ? 0.48 : 0.36)));
 
+  let size = start;
   ctx.font = `${size}px ui-sans-serif`;
   while (ctx.measureText(text).width > maxW && size > minSize) {
-    size--;
-    ctx.font = `${size}px ui-sans-serif`;
+    size--; ctx.font = `${size}px ui-sans-serif`;
   }
+
+  // subtle outline for contrast
+  ctx.lineWidth = Math.max(1, Math.round(size * 0.10));
+  ctx.strokeStyle = "rgba(0,0,0,0.28)";
+  ctx.strokeText(text, x, y);
+
   ctx.fillText(text, x, y);
 }
 
-
 function drawFrog(){
-  const hop=frog.jumping? Math.sin(Math.min(1,frog.jT)*Math.PI):0; const sx=1+hop*0.12, sy=1-hop*0.22; const baseX=22, baseY=16;
+  const hop = frog.jumping ? Math.sin(Math.min(1,frog.jT)*Math.PI) : 0;
+const sx = 1 + hop*0.12, sy = 1 - hop*0.22;
+
+// Size ties to tile size; smaller on phones
+const tile = bridge ? bridge.tileSize : 22;
+const frogBase = IS_SMALL ? Math.min(20, tile * 0.50) : 22; // was fixed 22
+const baseX = frogBase;
+const baseY = Math.round(frogBase * 0.73);
+
   ctx.save(); ctx.translate(frog.x,frog.y); ctx.scale(sx,sy);
   // body fill (rainbow unlock after 5 runs)
   if(frog.rainbow){ const g=ctx.createLinearGradient(-22,0,22,0); g.addColorStop(0,"#ff5f6d"); g.addColorStop(0.2,"#ffc371"); g.addColorStop(0.4,"#fff176"); g.addColorStop(0.6,"#7cf6a3"); g.addColorStop(0.8,"#64b5f6"); g.addColorStop(1,"#ba68c8"); ctx.fillStyle=g; }
