@@ -97,7 +97,7 @@ const SEQS = BRIDGE_ORDER.map(d => ENDINGS_ROWS.map(row => row[d]));
 
 // avatar persistence
 // avatar: session-only (resets on refresh)
-let nextAvatar = { color:"#3aa34a", pattern:"none", rainbow:false };
+let nextAvatar = { color:"green", pattern:null, rainbow:false };
 let playthroughs = 0;        // counts this session only
 let rainbowShown = false;    // banner only once per session
 
