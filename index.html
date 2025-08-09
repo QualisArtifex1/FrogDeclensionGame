@@ -96,9 +96,10 @@ const TOTAL_BRIDGES = 8;
 const SEQS = BRIDGE_ORDER.map(d => ENDINGS_ROWS.map(row => row[d]));
 
 // avatar persistence
-let nextAvatar = JSON.parse(localStorage.getItem("latinFrogAvatar")||"null") || {color:"#3aa34a", pattern:"none", rainbow:false};
-let playthroughs = parseInt(localStorage.getItem("latinFrogRuns")||"0",10);
-let rainbowShown = localStorage.getItem("latinRainbowShown") === "true"; // banner already shown once
+// avatar: session-only (resets on refresh)
+let nextAvatar = { color:"#3aa34a", pattern:"none", rainbow:false };
+let playthroughs = 0;        // counts this session only
+let rainbowShown = false;    // banner only once per session
 
 // game phases
 const PHASE_BRIDGES = "bridges";
