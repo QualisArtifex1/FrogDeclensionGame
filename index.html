@@ -384,11 +384,11 @@ gameReady = true;
 function makeBridge(levelIdx){
   const seq = SEQS[levelIdx];
   const grid=[...Array(TILE_ROWS)].map(()=>[...Array(TILE_COLS)].map(()=>({ending:"",correct:false,glow:0,crack:0,dead:false})));
-  let col=Math.floor(TILE_COLS/2); const path=[];
-  for(let r=0;r<TILE_ROWS;r++){
-    if(r>0){ col = Math.max(0, Math.min(TILE_COLS-1, col + [-1,0,1][Math.floor(Math.random()*3)])); }
-    path.push({r,c:col});
-  }
+  const path = [];
+for (let r = 0; r < TILE_ROWS; r++) {
+  const c = Math.floor(Math.random() * TILE_COLS); // 0..TILE_COLS-1, independent each row
+  path.push({ r, c });
+}
   for(let r=0;r<TILE_ROWS;r++){ const {c}=path[r]; grid[r][c].ending=seq[r]; grid[r][c].correct=true; }
   for(let r=0;r<TILE_ROWS;r++) for(let c=0;c<TILE_COLS;c++) if(!grid[r][c].ending){ const ex=new Set([seq[r]]); grid[r][c].ending = sampleWrongEnding(ex); }
   const riverH = (RIVER_Y2 - RIVER_Y1) - 8;
