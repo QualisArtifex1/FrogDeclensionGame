@@ -5,32 +5,34 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>Latin Frog — Declension Bridges</title>
 <style>
-  /* Minimal CSS; no CSS custom properties and no single quotes to avoid doc.write parsers that wrap in single quotes. */
-  html,body{margin:0;height:100%;background:#a8d8ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji",sans-serif}
+  /* Enhanced CSS with better visuals */
+  html,body{margin:0;height:100%;background: linear-gradient(135deg, #a8d8ff 0%, #7db9e8 100%);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji",sans-serif; overflow: hidden;}
   #wrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;}
-  header{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;color:#16324f}
-  header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:0.4px}
-  .pill{display:inline-flex;gap:10px;align-items:center;background:#f5fbff;border:2px solid #cfe9ff;border-radius:999px;padding:6px 10px;box-shadow:0 2px 0 rgba(0,0,0,0.06)}
+  header{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;color:#16324f; background: rgba(255,255,255,0.8); border-radius: 0 0 16px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);}
+  header h1{font-size:22px;margin:0;font-weight:800;letter-spacing:0.4px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);}
+  .pill{display:inline-flex;gap:12px;align-items:center;background: linear-gradient(to bottom, #f5fbff, #e3f2fd);border:2px solid #cfe9ff;border-radius:999px;padding:8px 16px;box-shadow:0 3px 8px rgba(0,0,0,0.08)}
   #canvas{
   flex:1;
   width:100%;
   max-width:980px;
-  /* aspect-ratio removed so JS is the single source of truth */
-  background:linear-gradient(180deg,#70c050,#5bb140);
-  border-radius:16px;
-  box-shadow:0 10px 30px rgba(0,0,0,.15);
-  touch-action:none
+  background: linear-gradient(180deg, #70c050, #5bb140);
+  border-radius:20px;
+  box-shadow:0 12px 36px rgba(0,0,0,.2);
+  touch-action:none;
+  overflow: hidden;
+  position: relative;
 }
-  footer{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;color:#16324f}
-  button{background:#16324f;color:white;border:none;border-radius:10px;padding:10px 14px;font-weight:700;box-shadow:0 3px 0 rgba(0,0,0,.15);cursor:pointer}
-  button:active{transform:translateY(1px)}
-  .legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .tag{background:#fff;color:#234;border:1px solid #cde;border-radius:8px;padding:4px 8px;font-size:12px}
-  .toast{position:fixed;left:50%;top:10px;transform:translateX(-50%);background:#ffefef;color:#7a1515;border:1px solid #ffb6b6;padding:8px 12px;border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,.15);font-size:12px;z-index:9999;display:none}
+  footer{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;color:#16324f; background: rgba(255,255,255,0.8); border-radius: 16px 16px 0 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.1);}
+  button{background: linear-gradient(to bottom, #16324f, #0f2238);color:white;border:none;border-radius:12px;padding:12px 18px;font-weight:700;box-shadow:0 4px 0 rgba(0,0,0,.2);cursor:pointer; transition: all 0.2s ease;}
+  button:hover{transform: translateY(-2px); box-shadow: 0 6px 0 rgba(0,0,0,.2);}
+  button:active{transform:translateY(1px); box-shadow: 0 2px 0 rgba(0,0,0,.2);}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .tag{background:#fff;color:#234;border:1px solid #cde;border-radius:10px;padding:6px 12px;font-size:13px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
+  .toast{position:fixed;left:50%;top:10px;transform:translateX(-50%);background:#ffefef;color:#7a1515;border:1px solid #ffb6b6;padding:10px 16px;border-radius:10px;box-shadow:0 6px 16px rgba(0,0,0,.2);font-size:13px;z-index:9999;display:none}
   /* Win overlay sits over the canvas, under the banner area */
-  #winOverlay{position:absolute;top:14%;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.92);border:2px solid #cfe9ff;border-radius:14px;padding:10px 14px;display:none;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.15)}
-  #winOverlay .time{color:#16324f;font-weight:700;margin-right:8px}
-  @media (max-width:700px){header h1{font-size:16px} button{padding:8px 12px}}
+  #winOverlay{position:absolute;top:14%;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.96);border:3px solid #cfe9ff;border-radius:18px;padding:16px 20px;display:none;z-index:20;box-shadow:0 12px 32px rgba(0,0,0,.2); backdrop-filter: blur(10px);}
+  #winOverlay .time{color:#16324f;font-weight:800;margin-right:10px; font-size: 18px;}
+  @media (max-width:700px){header h1{font-size:18px} button{padding:10px 14px}}
   @media (max-width:480px){
   #wrap{ gap:0; }
   header{
@@ -38,14 +40,12 @@
     display:flex; justify-content:center; z-index:5;
     background:transparent; pointer-events:none;
   }
-  header .pill{ pointer-events:auto; } /* still tappable */
+  header .pill{ pointer-events:auto; background: rgba(245, 251, 255, 0.9); } /* still tappable */
   footer{ display:none; }              /* hide legend to free space */
   header h1{ display:none; }                  /* free space */
-.pill{ padding:4px 8px; gap:6px; font-size:12px; border-width:1px; }
-.pill b{ font-weight:700; }                 /* keep emphasis readable */
-.pill span{ white-space:nowrap; }           /* prevent wrapping */
-/* Optional: shrink the whole pill area even more */
-/* .pill{ transform: scale(.9); transform-origin: top center; } */
+  .pill{ padding:6px 12px; gap:8px; font-size:12px; border-width:1px; }
+  .pill b{ font-weight:700; }                 /* keep emphasis readable */
+  .pill span{ white-space:nowrap; }           /* prevent wrapping */
 }
 </style>
 </head>
