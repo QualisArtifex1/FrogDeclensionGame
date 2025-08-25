@@ -9,7 +9,7 @@
   html,body{margin:0;height:100%;background: linear-gradient(135deg, #a8d8ff 0%, #7db9e8 100%);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji",sans-serif; overflow: hidden;}
   #wrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;}
   header{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;color:#16324f; background: rgba(255,255,255,0.8); border-radius: 0 0 16px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);}
-  header h1{font-size:22px;margin:0;font-weight:800;letter-spacing:0.4px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);}
+  header h1{font-size:22px;margin:0;font-weight:800;letter-spacing:0.4px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);}  
   .pill{display:inline-flex;gap:12px;align-items:center;background: linear-gradient(to bottom, #f5fbff, #e3f2fd);border:2px solid #cfe9ff;border-radius:999px;padding:8px 16px;box-shadow:0 3px 8px rgba(0,0,0,0.08)}
   #canvas{
   flex:1;
@@ -22,29 +22,29 @@
   overflow: hidden;
   position: relative;
 }
-  footer{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;color:#16324f; background: rgba(255,255,255,0.8); border-radius: 16px 16px 0 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.1);}
-  button{background: linear-gradient(to bottom, #16324f, #0f2238);color:white;border:none;border-radius:12px;padding:12px 18px;font-weight:700;box-shadow:0 4px 0 rgba(0,0,0,.2);cursor:pointer; transition: all 0.2s ease;}
-  button:hover{transform: translateY(-2px); box-shadow: 0 6px 0 rgba(0,0,0,.2);}
-  button:active{transform:translateY(1px); box-shadow: 0 2px 0 rgba(0,0,0,.2);}
+  footer{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;color:#16324f; background: rgba(255,255,255,0.8); border-radius: 16px 16px 0 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.1);}  
+  button{background: linear-gradient(to bottom, #16324f, #0f2238);color:white;border:none;border-radius:12px;padding:12px 18px;font-weight:700;box-shadow:0 4px 0 rgba(0,0,0,.2);cursor:pointer; transition: all 0.2s ease;}  
+  button:hover{transform: translateY(-2px); box-shadow: 0 6px 0 rgba(0,0,0,.2);}  
+  button:active{transform:translateY(1px); box-shadow: 0 2px 0 rgba(0,0,0,.2);}  
   .legend{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .tag{background:#fff;color:#234;border:1px solid #cde;border-radius:10px;padding:6px 12px;font-size:13px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
+  .tag{background:#fff;color:#234;border:1px solid #cde;border-radius:10px;padding:6px 12px;font-size:13px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}  
   .toast{position:fixed;left:50%;top:10px;transform:translateX(-50%);background:#ffefef;color:#7a1515;border:1px solid #ffb6b6;padding:10px 16px;border-radius:10px;box-shadow:0 6px 16px rgba(0,0,0,.2);font-size:13px;z-index:9999;display:none}
   /* Win overlay sits over the canvas, under the banner area */
-  #winOverlay{position:absolute;top:14%;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.96);border:3px solid #cfe9ff;border-radius:18px;padding:16px 20px;display:none;z-index:20;box-shadow:0 12px 32px rgba(0,0,0,.2); backdrop-filter: blur(10px);}
-  #winOverlay .time{color:#16324f;font-weight:800;margin-right:10px; font-size: 18px;}
-  @media (max-width:700px){header h1{font-size:18px} button{padding:10px 14px}}
-  @media (max-width:480px){
+  #winOverlay{position:absolute;top:14%;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.96);border:3px solid #cfe9ff;border-radius:18px;padding:16px 20px;display:none;z-index:20;box-shadow:0 12px 32px rgba(0,0,0,.2); backdrop-filter: blur(10px);}  
+  #winOverlay .time{color:#16324f;font-weight:800;margin-right:10px; font-size: 18px;}  
+  @media (max-width:700px){header h1{font-size:18px} button{padding:10px 14px}}  
+  @media (max-width:480px){  
   #wrap{ gap:0; }
   header{
     position:absolute; top:4px; left:0; right:0;
     display:flex; justify-content:center; z-index:5;
     background:transparent; pointer-events:none;
   }
-  header .pill{ pointer-events:auto; background: rgba(245, 251, 255, 0.9); } /* still tappable */
-  footer{ display:none; }              /* hide legend to free space */
-  header h1{ display:none; }                  /* free space */
+  header .pill{ pointer-events:auto; background: rgba(245, 251, 255, 0.9); } /* still tappable */  
+  footer{ display:none; }              /* hide legend to free space */  
+  header h1{ display:none; }                  /* free space */  
   .pill{ padding:6px 12px; gap:8px; font-size:12px; border-width:1px; }
-  .pill b{ font-weight:700; }                 /* keep emphasis readable */
+  .pill b{ font-weight:700; }                 /* keep emphasis readable */  
   .pill span{ white-space:nowrap; }           /* prevent wrapping */
 }
 </style>
@@ -87,17 +87,208 @@ const COLORS = {
   meadow1:"#7dd56f", meadow2:"#66c15e", meadow3:"#8fe280",
   river1:"#3aa7e0", river2:"#2f97d6",
   bridge:"#d9bf8f", bridgeEdge:"#b79b6d", bridgeShadow:"rgba(0,0,0,.25)",
-  plank:"#e6cc9a", plankLine:"#c5a97a", post:"#9c7b45", rope:"#d2b07a",
-  tile:"#f7ead1", tileText:"#231f15", tileGlow:"#7bf5a3", tilePanel:"#fff9e8", tileWrong:"#ffd6c7",
+  plank:"#ead5ae", plankLine:"#cdb68a", post:"#9c7b45", rope:"#d2b07a",
+  tile:"#f9efd9", tileText:"#2b2b2b", tileGlow:"#7bf5a3", tilePanel:"#fffaed", tileWrong:"#ffd6c7",
   ui:"#16324f", ui2:"#f5fbff", accent:"#ffd24f",
   flower1:"#ff77aa", flower2:"#ffd24f", flower3:"#88ddff", flower4:"#ff9de1",
   bug:"#222", pad:"#6fb86a", padEdge:"#4f9f52",
   fish:"#ff7043", splash:"#9dd9ff",
   confetti1:"#ff5f6d", confetti2:"#ffc371", confetti3:"#fff176", confetti4:"#7cf6a3", confetti5:"#64b5f6", confetti6:"#ba68c8"
 };
+
+/*
+ * Seasonal themes allow the game to feel different each time it loads.  Each
+ * theme defines its own palette for the sky, grass, meadow and river, along
+ * with a set of flower colours.  When the script starts a random theme is
+ * selected and its values are merged into the primary `COLORS` object.  This
+ * happens once per page load and does not impact gameplay logic.
+ */
+const SEASON_THEMES = {
+  spring: {
+    sky: "#bde0fe",
+    grass1: "#70c050",
+    grass2: "#5bb140",
+    meadow1: "#84d97a",
+    meadow2: "#65c55e",
+    river1: "#4bb4e6",
+    river2: "#3a9fd4",
+    pad: "#74c26f",
+    flowers: ["#ff77aa", "#ffd24f", "#88ddff", "#ff9de1"]
+  },
+  summer: {
+    sky: "#a8d8ff",
+    grass1: "#64b450",
+    grass2: "#4e983e",
+    meadow1: "#7dd56f",
+    meadow2: "#66c15e",
+    river1: "#3aa7e0",
+    river2: "#2f97d6",
+    pad: "#6fb86a",
+    flowers: ["#ffd24f", "#88ddff", "#ff9de1", "#ff77aa"]
+  },
+  autumn: {
+    sky: "#ffd8a8",
+    grass1: "#dca45f",
+    grass2: "#c68b46",
+    meadow1: "#e5b76d",
+    meadow2: "#d2a156",
+    river1: "#e8985d",
+    river2: "#c87f43",
+    pad: "#b77a46",
+    flowers: ["#ffb347", "#ffa07a", "#ff77aa", "#ffd24f"]
+  },
+  winter: {
+    sky: "#d0e7ff",
+    grass1: "#a3c6d1",
+    grass2: "#84acbc",
+    meadow1: "#b5d0e2",
+    meadow2: "#99bbd0",
+    river1: "#6ba4c9",
+    river2: "#4f7ba6",
+    pad: "#6fa0b6",
+    flowers: ["#c3d8e2", "#b2cadc", "#9fbdd6", "#8eaed0"]
+  }
+};
+
+// Day/night palette definitions.  These are used to gradually blend the
+// environment between daytime and nighttime over time.  Only a subset of
+// colour keys are included here; other values remain unchanged.
+const DAY_COLORS = {
+  sky: COLORS.sky,
+  grass1: COLORS.grass1,
+  grass2: COLORS.grass2,
+  meadow1: COLORS.meadow1,
+  meadow2: COLORS.meadow2,
+  river1: COLORS.river1,
+  river2: COLORS.river2
+};
+// Darker nighttime variants of the above colours.  These values were
+// hand‑picked to provide a gentle nighttime appearance without losing
+// visibility of game elements.
+const NIGHT_COLORS = {
+  sky: "#0a223f",
+  grass1: "#1c3410",
+  grass2: "#152a0c",
+  meadow1: "#18361e",
+  meadow2: "#102a15",
+  river1: "#19456c",
+  river2: "#132d4b"
+};
+
+// Time state for the day/night cycle.  The value oscillates between 0 and 2
+// over the course of each full cycle.  A value of 0 means sunrise, 1 means
+// midnight, and 2 means the end of the cycle (wraps back to 0).
+let dayTime = 0;
+// Length of a full day/night cycle in seconds.
+const DAY_LENGTH = 40; // 40 seconds for a complete daylight→night→day cycle
+// Star alpha controls the opacity of night stars and is derived from dayTime.
+let starAlpha = 0;
+
+/*
+ * Randomly selects a seasonal theme and applies its colours to the global
+ * `COLORS` object.  This function also updates the flower colours so that
+ * blossoms match the chosen season.  It should be called once during
+ * initialization before any drawing occurs.
+ */
+function applySeasonTheme(){
+  const keys = Object.keys(SEASON_THEMES);
+  const themeName = keys[Math.floor(Math.random()*keys.length)];
+  const theme = SEASON_THEMES[themeName];
+  for(const key in theme){
+    if(key === 'flowers') continue;
+    COLORS[key] = theme[key];
+  }
+  // Update lily pad colour
+  if(theme.pad) COLORS.pad = theme.pad;
+  // Apply flower palette if provided
+  if(Array.isArray(theme.flowers)){
+    const colors = theme.flowers;
+    COLORS.flower1 = colors[0] || COLORS.flower1;
+    COLORS.flower2 = colors[1] || COLORS.flower2;
+    COLORS.flower3 = colors[2] || COLORS.flower3;
+    COLORS.flower4 = colors[3] || COLORS.flower4;
+  }
+  // Update DAY_COLORS to match the newly selected theme so the day/night
+  // transition starts from these values rather than the original default
+  for(const key in DAY_COLORS){
+    if(COLORS[key]) DAY_COLORS[key] = COLORS[key];
+  }
+}
+
+// Helper: adjust a hex colour by a percentage.  Positive values lighten,
+// negative values darken.  Percent should be between -1 and 1.
+function shadeColor(col, percent){
+  // Remove # if present
+  const hex = col.replace('#','');
+  const num = parseInt(hex, 16);
+  let r = (num >> 16) & 0xff;
+  let g = (num >> 8) & 0xff;
+  let b = num & 0xff;
+  r = Math.min(255, Math.max(0, r + Math.round(255 * percent)));
+  g = Math.min(255, Math.max(0, g + Math.round(255 * percent)));
+  b = Math.min(255, Math.max(0, b + Math.round(255 * percent)));
+  const newNum = (r << 16) | (g << 8) | b;
+  return '#' + newNum.toString(16).padStart(6, '0');
+}
+
+// Convert a hex colour to an RGB object
+function hexToRgb(hex){
+  const cleaned = hex.replace('#','');
+  const num = parseInt(cleaned, 16);
+  return { r: (num >> 16) & 0xff, g: (num >> 8) & 0xff, b: num & 0xff };
+}
+
+// Convert RGB object back to hex
+function rgbToHex(r, g, b){
+  const n = (r << 16) | (g << 8) | b;
+  return '#' + n.toString(16).padStart(6, '0');
+}
+
+// Linearly interpolate between two hex colours
+function lerpColor(c1, c2, t){
+  const rgb1 = hexToRgb(c1);
+  const rgb2 = hexToRgb(c2);
+  const r = Math.round(rgb1.r + (rgb2.r - rgb1.r) * t);
+  const g = Math.round(rgb1.g + (rgb2.g - rgb1.g) * t);
+  const b = Math.round(rgb1.b + (rgb2.b - rgb1.b) * t);
+  return rgbToHex(r,g,b);
+}
+
+/*
+ * updateDayNight(dt)
+ *
+ * Advances the day/night cycle and smoothly interpolates a subset of colours
+ * between their daytime and nighttime values.  This function should be
+ * invoked each frame from within the main loop prior to rendering.  It
+ * computes `starAlpha` which controls the visibility of the night sky stars.
+ */
+function updateDayNight(dt){
+  // Advance time and wrap every two units (day→night→day)
+  dayTime += dt / DAY_LENGTH;
+  if(dayTime > 2) dayTime -= 2;
+  // Determine the blend factor: 0 → 1 → 0 for day→night→day
+  const phase = (dayTime <= 1) ? dayTime : (2 - dayTime);
+  // Interpolate each relevant colour
+  for(const key in DAY_COLORS){
+    const dayCol = DAY_COLORS[key];
+    const nightCol = NIGHT_COLORS[key];
+    COLORS[key] = lerpColor(dayCol, nightCol, phase);
+  }
+  // Star alpha increases once the world is more than 60% through twilight
+  starAlpha = 0;
+  if(phase > 0.6){
+    // map phase from 0.6→1 to 0→1
+    starAlpha = Math.min(1, (phase - 0.6) / 0.4);
+  }
+}
 // --- mobile sizing helpers ---
 const MOBILE_BREAKPOINT = 480;
 let IS_SMALL = false; // updated in resize()
+
+// Apply a random seasonal palette once at start.  Doing this near the top of the
+// script ensures that all subsequent rendering uses the themed colours.  We call
+// this immediately so that the base colours (DAY_COLORS) inherit the theme.
+applySeasonTheme();
 
 /***********************
  * DATA & CONFIG
@@ -156,6 +347,19 @@ if (!ctx) {
   alert("Canvas 2D context failed to initialize.");
 }
 console.log("[init] 2D ctx OK:", !!ctx);
+
+// Note: A global error handler is useful during development to surface
+// unexpected issues quickly.  The original version of this file displayed
+// uncaught errors as a toast message.  For the production version we
+// quietly log errors to the console instead of interrupting the game
+// experience.  You can re‑enable toast display for debugging by
+// uncommenting the body below.
+window.addEventListener('error', function(e){
+  const msg = e.message || (e.error && e.error.message) || String(e.error) || 'Unknown error';
+  console.error('Uncaught error:', msg);
+  // const toast = document.getElementById('toast');
+  // if(toast){ toast.textContent = 'JS Error: ' + msg; toast.style.display = 'block'; }
+});
   
 let DPR = 1, W = 960, H = 540;
 // don't build bridges until the bridge constants exist
@@ -164,6 +368,16 @@ let gameReady = false;
 let crittersReady = false;
 let RIVER_Y1 = 0, RIVER_Y2 = 0;
 let _rzRAF = 0;
+
+// Ambience arrays for stars, birds and mountains are declared early to avoid
+// temporal dead zones.  These variables are assigned empty arrays here so
+// they exist when `resize()` is first invoked.
+let stars = [];
+let birds = [];
+let mountains = [];
+
+// Clouds array for drifting clouds across the sky
+const clouds = [];   // drifting clouds across the sky
 
 function resize(){
   const ratio = 16/9;
@@ -218,6 +432,13 @@ if (IS_SMALL) {
 
   // Re-seed critters so pads/flowers fit new river/meadow bounds
   if (crittersReady && typeof initCritters === "function") initCritters();
+
+  // Regenerate stars, birds and mountains whenever the layout changes.  They
+  // depend on W, H and RIVER_Y1.  These functions are safe to call even
+  // before their arrays are used.
+  if(typeof initStars === 'function') initStars();
+  if(typeof initBirds === 'function') initBirds();
+  if(typeof initMountains === 'function') initMountains();
 
  // Recompute bridge geometry only after game is ready
 if (gameReady && phase === PHASE_BRIDGES) {
@@ -355,6 +576,7 @@ const fishes=[]; // fish jump animations
 // meadow extras
 const bees=[]; const BEE_COUNT=14; // cheerful meadow bees
 const sparkles=[]; // little drifting pollen
+// drifting clouds across the sky
 crittersReady = true;
 
 function initCritters(){
@@ -365,6 +587,13 @@ function initCritters(){
   for(let i=0;i<48;i++) flowers.push({x:Math.random()*W,y:RIVER_Y2+20+Math.random()*(H-(RIVER_Y2+20)),c:[COLORS.flower1,COLORS.flower2,COLORS.flower3,COLORS.flower4][i%4],s:4+Math.random()*5,t:Math.random()*6.28});
   for(let i=0;i<BEE_COUNT;i++) bees.push({x:Math.random()*W,y:Math.random()*H,a:Math.random()*6.28,sp:0.8+Math.random()*1.2});
   for(let i=0;i<60;i++) sparkles.push({x:Math.random()*W,y:Math.random()*H,t:Math.random()*6.28});
+  // Assign a ripple timer to each lily pad so that ripples appear at random
+  // intervals.  This property is decremented in updateLilyPads().
+  for(const p of lilyPads){
+    p.rippleTime = 1 + Math.random() * 3;
+  }
+  // Initialize clouds after other critters; see initClouds() below for details.
+  if (typeof initClouds === 'function') initClouds();
 }
 
 // fish spawner
@@ -373,8 +602,250 @@ function maybeSpawnFish(dt){ fishTimer -= dt; if( fishTimer <= 0){ fishTimer = 2
 function updateFishes(dt){ for(let i=fishes.length-1;i>=0;i--){ const f=fishes[i]; f.t+=dt; if(f.t>f.dur){ addRing(f.x0 + f.dir*60, f.y0, 14); fishes.splice(i,1);} } }
 function drawFishes(){ for(const f of fishes){ const t=f.t/f.dur; const x=f.x0 + f.dir * (t*120); const y=f.y0 - Math.sin(Math.PI*t)*f.amp; ctx.save(); ctx.translate(x,y); ctx.rotate(f.dir>0?0:Math.PI); ctx.fillStyle=COLORS.fish; ctx.beginPath(); ctx.ellipse(0,0,10,5,0,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.moveTo(-10,0); ctx.lineTo(-16,4); ctx.lineTo(-16,-4); ctx.closePath(); ctx.fill(); ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(4,-2,1.2,0,Math.PI*2); ctx.fill(); ctx.restore(); } }
 
-function updateLilyPads(dt){ for(const p of lilyPads){ p.phase+=dt*1.2; p.x += Math.sin(p.phase*0.6)*p.drift*0.4; if(p.x<-20) p.x=W+20; if(p.x>W+20) p.x=-20; } }
-function drawLilyPads(){ for(const p of lilyPads){ const bob = Math.sin(p.phase)*2; ctx.save(); ctx.translate(p.x, p.y + bob); ctx.fillStyle=COLORS.pad; ctx.beginPath(); ctx.ellipse(0,0,p.r,p.r*0.8,0,0,Math.PI*2); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,.15)"; ctx.beginPath(); ctx.arc(0,0,p.r*0.7,0,Math.PI*2); ctx.stroke(); ctx.restore(); } }
+function updateLilyPads(dt){
+  for(const p of lilyPads){
+    // Animate the gentle bobbing and drifting of each pad.
+    p.phase += dt * 1.2;
+    p.x += Math.sin(p.phase * 0.6) * p.drift * 0.4;
+    if(p.x < -20) p.x = W + 20;
+    if(p.x > W + 20) p.x = -20;
+    // Countdown the ripple timer.  When it expires, spawn a ripple ring
+    // emanating from the pad and reset the timer to a new random interval.
+    if (p.rippleTime !== undefined) {
+      p.rippleTime -= dt;
+      if (p.rippleTime <= 0) {
+        addRing(p.x, p.y, 12);
+        // New ripple time between 2 and 5 seconds
+        p.rippleTime = 2 + Math.random() * 3;
+      }
+    }
+  }
+}
+function drawLilyPads(){
+  // Render lily pads with depth using a radial gradient and subtle highlight.
+  for (const p of lilyPads) {
+    const bob = Math.sin(p.phase) * 2;
+    ctx.save();
+    ctx.translate(p.x, p.y + bob);
+    // Create a radial gradient for the pad: lighter in the center, darker at the edges.
+    const innerCol = "#89cd83"; // lighter green center
+    const outerCol = COLORS.pad; // default pad edge color
+    const grad = ctx.createRadialGradient(0, 0, p.r * 0.2, 0, 0, p.r);
+    grad.addColorStop(0, innerCol);
+    grad.addColorStop(1, outerCol);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, p.r, p.r * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Add a subtle white highlight to simulate a water sheen on the leaf.
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.ellipse(-p.r * 0.3, -p.r * 0.2, p.r * 0.45, p.r * 0.25, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    // Draw an outline for definition.
+    ctx.strokeStyle = "rgba(0,0,0,0.15)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, p.r * 0.7, p.r * 0.56, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/***********************
+ * STARFIELD: sparkling night sky
+ *
+ * Stars are only visible at night.  Each star has a fixed position in the
+ * upper portion of the canvas and twinkles by modulating its alpha.  The
+ * global variable `starAlpha` controls their overall brightness, and is
+ * derived from the day/night cycle.  Call `initStars()` whenever the
+ * canvas size or river position changes (e.g. inside `resize()`).
+ ***********************/
+function initStars(){
+  stars.length = 0;
+  // Place stars in the region above the river (sky)
+  const count = 80;
+  for(let i=0; i<count; i++){
+    const x = Math.random() * W;
+    // limit stars to upper portion of the sky (80% of the distance to the river)
+    const y = Math.random() * RIVER_Y1 * 0.8;
+    const twinkle = Math.random() * Math.PI * 2;
+    stars.push({x, y, twinkle});
+  }
+}
+
+function drawStars(time){
+  if(starAlpha <= 0 || stars.length === 0) return;
+  ctx.save();
+  // Stars fade in and out according to starAlpha
+  for(const s of stars){
+    // Twinkling effect: oscillate brightness between 0.5 and 1
+    const phase = (Math.sin(s.twinkle + time * 0.002) + 1) * 0.5;
+    const alpha = starAlpha * (0.5 + 0.5 * phase);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(s.x, s.y, 2, 2);
+  }
+  ctx.restore();
+}
+
+/***********************
+ * BIRDS: simple silhouettes gliding across the sky
+ *
+ * Birds add life to the sky.  Each bird travels in a straight line at a
+ * constant speed and wraps around the canvas when it exits the bounds.  The
+ * flapping motion is simulated by adjusting the curvature of their wings
+ * using a sinusoid.
+ ***********************/
+function initBirds(){
+  birds.length = 0;
+  const count = 4;
+  for(let i=0; i<count; i++){
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const speed = 40 + Math.random() * 40;
+    const x = dir > 0 ? -60 - Math.random() * 120 : W + 60 + Math.random() * 120;
+    const y = Math.random() * RIVER_Y1 * 0.4 + RIVER_Y1 * 0.1;
+    const flap = Math.random() * Math.PI * 2;
+    birds.push({x, y, speed: speed * dir, flap, dir});
+  }
+}
+
+function updateBirds(dt){
+  for(const b of birds){
+    b.x += b.speed * dt;
+    b.flap += dt * 6; // controls wing oscillation
+    // Wrap birds around the screen
+    if(b.speed > 0 && b.x > W + 80){
+      b.x = -80;
+      b.y = Math.random() * RIVER_Y1 * 0.4 + RIVER_Y1 * 0.1;
+    } else if(b.speed < 0 && b.x < -80){
+      b.x = W + 80;
+      b.y = Math.random() * RIVER_Y1 * 0.4 + RIVER_Y1 * 0.1;
+    }
+  }
+}
+
+function drawBirds(){
+  if(birds.length === 0) return;
+  ctx.save();
+  ctx.strokeStyle = "#444";
+  ctx.lineWidth = 2;
+  for(const b of birds){
+    const size = 10;
+    const wingScale = Math.sin(b.flap) * 0.5 + 0.5; // 0..1
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.scale(b.dir, 1);
+    // Left wing
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(-size * wingScale, -size * 0.6, -size * 2, 0);
+    // Right wing
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(size * wingScale, -size * 0.6, size * 2, 0);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/***********************
+ * MOUNTAINS: distant silhouettes behind the river
+ *
+ * Mountains are generated based on the current canvas width and river height.
+ * Each mountain consists of a triangular peak and two base points.  The
+ * heights vary randomly to create a natural skyline.  Mountains do not
+ * animate, but they are re‑initialised whenever the canvas is resized.
+ ***********************/
+function initMountains(){
+  mountains.length = 0;
+  // Determine number of peaks based on the width of the canvas
+  const peaks = 5 + Math.floor(Math.random() * 3);
+  const baseHeight = RIVER_Y1 * 0.5; // maximum height relative to river
+  const widthPerPeak = W / peaks;
+  for(let i=0; i<peaks; i++){
+    const xStart = i * widthPerPeak;
+    const xEnd = xStart + widthPerPeak;
+    const peakX = xStart + widthPerPeak * (0.3 + Math.random() * 0.4);
+    const height = baseHeight * (0.5 + Math.random() * 0.5);
+    mountains.push({xStart, xEnd, peakX, height});
+  }
+}
+
+function drawMountains(){
+  if(mountains.length === 0) return;
+  ctx.save();
+  ctx.fillStyle = "rgba(34,64,34,0.6)";
+  for(const m of mountains){
+    ctx.beginPath();
+    ctx.moveTo(m.xStart, RIVER_Y1);
+    ctx.lineTo(m.peakX, RIVER_Y1 - m.height);
+    ctx.lineTo(m.xEnd, RIVER_Y1);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/***********************
+ * CLOUDS: drifting across the sky
+ * These functions create, update, and render fluffy clouds that move across
+ * the canvas, adding a layer of depth and whimsy. Clouds are drawn as a
+ * handful of overlapping circles to approximate soft edges. They appear in
+ * the sky region above the river. Adjust the count, speed, and sizing
+ * constants to suit the desired aesthetic.
+ ***********************/
+
+function initClouds(){
+  clouds.length = 0;
+  const count = 6;
+  for (let i = 0; i < count; i++) {
+    // Position clouds in the upper portion of the scene (above the river)
+    const y = Math.random() * RIVER_Y1 * 0.6;
+    const scale = 0.5 + Math.random() * 0.6; // relative size multiplier
+    const speed = 10 + Math.random() * 20;    // pixels per second
+    clouds.push({ x: Math.random() * W, y, scale, speed });
+  }
+}
+
+function updateClouds(dt){
+  for (const c of clouds) {
+    c.x += c.speed * dt;
+    // Each cloud wraps around when it has fully drifted beyond the right edge.
+    const maxW = 200 * c.scale;
+    if (c.x - maxW > W + 50) {
+      c.x = -maxW;
+    }
+  }
+}
+
+function drawClouds(){
+  // Draw each cloud using a series of overlapping circles for a soft look.
+  ctx.save();
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = '#ffffff';
+  for (const c of clouds) {
+    const w = 120 * c.scale;
+    const h = 40 * c.scale;
+    // Base position for the cloud
+    const baseX = c.x;
+    const baseY = c.y + 20; // offset down slightly for better composition
+    // Draw central ellipse
+    ctx.beginPath();
+    ctx.ellipse(baseX, baseY, w * 0.6, h * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Draw additional puffs to the left and right
+    ctx.beginPath();
+    ctx.ellipse(baseX - w * 0.4, baseY + h * 0.1, w * 0.4, h * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(baseX + w * 0.5, baseY + h * 0.2, w * 0.5, h * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
 
 /***********************
  * BRIDGE GEN
@@ -567,12 +1038,20 @@ function updateMeadow(dt){
 function drawMeadowBackground(time){
   const g1 = ctx.createLinearGradient(0,0,0,H); g1.addColorStop(0,COLORS.meadow1); g1.addColorStop(1,COLORS.meadow2);
   ctx.fillStyle=g1; ctx.fillRect(0,0,W,H);
+  // Draw drifting clouds behind meadow elements
+  drawClouds();
   // wind bands
   ctx.save(); ctx.globalAlpha=0.12; ctx.fillStyle="#fff"; for(let y=20;y<H;y+=24){ const off=Math.sin(time*0.0013 + y*0.02)*10; ctx.fillRect(off,y,W-2*Math.abs(off),2);} ctx.restore();
   // flowers carpet
   for(const f of flowers){ const sway=Math.sin(time*0.003+f.t)*2; ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(sway*0.03); ctx.strokeStyle="#2f6"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,10+f.s*2); ctx.stroke(); ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(0,0,f.s,0,Math.PI*2); ctx.fill(); ctx.restore(); }
-  // sparkles
-  ctx.save(); ctx.globalAlpha=0.6; ctx.fillStyle="rgba(255,255,255,0.8)"; for(const s of sparkles){ ctx.fillRect(s.x,s.y,1.5,1.5);} ctx.restore();
+  // sparkles (pollen or fireflies).  At night the sparkles dim slightly to
+  // allow stars to stand out.
+  ctx.save();
+  const pollenAlpha = 0.6 * (1 - 0.5 * starAlpha);
+  ctx.globalAlpha = pollenAlpha;
+  ctx.fillStyle = "rgba(255,255,255,0.8)";
+  for(const s of sparkles){ ctx.fillRect(s.x, s.y, 1.5, 1.5); }
+  ctx.restore();
   // bees
   for(const b of bees){ ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(Math.sin(b.a)*0.6); ctx.fillStyle="#ffe066"; ctx.beginPath(); ctx.ellipse(0,0,6,4,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle="#000"; ctx.fillRect(-3,-1,6,2); ctx.restore(); }
 }
@@ -751,14 +1230,36 @@ function drawBridge(){
   ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.font=`${Math.max(18, bridge.tileSize*0.46)}px ui-sans-serif`;
   for(let r=0;r<TILE_ROWS;r++) for(let c=0;c<TILE_COLS;c++){
     const tile=bridge.grid[r][c]; const x=bridge.x0 + c*(bridge.tileSize+bridge.spacing); const y=bridge.y0 + r*(bridge.tileSize+bridge.spacing);
-    ctx.fillStyle = tile.dead? "#999" : COLORS.plank; ctx.fillRect(x,y,bridge.tileSize,bridge.tileSize);
+    // Fill the plank: use a vertical gradient on intact tiles to simulate
+    // wood grain, and a solid grey for collapsed (dead) tiles.
+    if(tile.dead){
+      ctx.fillStyle = "#999";
+      ctx.fillRect(x, y, bridge.tileSize, bridge.tileSize);
+    } else {
+      const grad = ctx.createLinearGradient(x, y, x, y + bridge.tileSize);
+      // Lighten the top and slightly darken the bottom to give depth.
+      // Use a slightly stronger light/dark contrast on the planks for
+      // a richer woodgrain effect.  Positive percentages lighten while
+      // negative percentages darken the base colour.
+      grad.addColorStop(0, shadeColor(COLORS.plank, 0.12));
+      grad.addColorStop(1, shadeColor(COLORS.plank, -0.12));
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, bridge.tileSize, bridge.tileSize);
+    }
     ctx.strokeStyle=COLORS.plankLine; ctx.lineWidth=1; for(let i=1;i<=3;i++){ const py=y+i*(bridge.tileSize/4); ctx.beginPath(); ctx.moveTo(x+2,py); ctx.lineTo(x+bridge.tileSize-2,py); ctx.stroke(); }
     ctx.fillStyle="rgba(0,0,0,.15)"; ctx.beginPath(); ctx.arc(x+6,y+6,1.6,0,Math.PI*2); ctx.arc(x+bridge.tileSize-6,y+6,1.6,0,Math.PI*2); ctx.arc(x+6,y+bridge.tileSize-6,1.6,0,Math.PI*2); ctx.arc(x+bridge.tileSize-6,y+bridge.tileSize-6,1.6,0,Math.PI*2); ctx.fill();
     const padIn = 6; const panelR = 8; ctx.fillStyle=COLORS.tilePanel; roundRect(x+padIn,y+padIn,bridge.tileSize-padIn*2,bridge.tileSize-padIn*2,panelR,true,false);
     if(tile.glow>0){ ctx.save(); ctx.shadowColor=COLORS.tileGlow; ctx.shadowBlur=18*tile.glow; ctx.fillStyle="rgba(255,255,255,.01)"; ctx.fillRect(x,y,bridge.tileSize,bridge.tileSize); ctx.restore(); tile.glow=Math.max(0,tile.glow-0.02); }
     if(tile.crack>0){ const k=tile.crack; ctx.strokeStyle="#333"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x+bridge.tileSize*0.2,y+bridge.tileSize*0.2); ctx.lineTo(x+bridge.tileSize*0.8,y+bridge.tileSize*0.8); ctx.moveTo(x+bridge.tileSize*0.8,y+bridge.tileSize*0.2); ctx.lineTo(x+bridge.tileSize*0.2,y+bridge.tileSize*0.8); ctx.stroke(); tile.crack=Math.max(0,k-0.03); if(tile.crack===0) tile.dead=true; }
     // text is large/high contrast for readability
-    ctx.fillStyle=COLORS.tileText; ctx.shadowColor="rgba(0,0,0,0.2)"; ctx.shadowBlur=0; ctx.shadowOffsetY=1; fitText(tile.ending, x+bridge.tileSize/2, y+bridge.tileSize/2, bridge.tileSize*0.8); ctx.shadowColor="transparent";
+    ctx.fillStyle=COLORS.tileText;
+    // Add a subtle drop shadow to improve contrast of text on tiles.
+    ctx.shadowColor = "rgba(0,0,0,0.35)";
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 2;
+    fitText(tile.ending, x+bridge.tileSize/2, y+bridge.tileSize/2, bridge.tileSize*0.8);
+    // Reset shadow so other drawings aren’t affected.
+    ctx.shadowColor = "transparent";
   }
   if(targetRow>=0 && targetRow<TILE_ROWS){ const {x,y,half} = getTileCenter(targetRow, selectedCol, true); ctx.save(); ctx.strokeStyle = COLORS.accent; ctx.lineWidth = 4; ctx.setLineDash([10,6]); ctx.strokeRect(x-half-2, y-half-2, (half*2)+4, (half*2)+4); ctx.setLineDash([]); ctx.restore(); }
   ctx.fillStyle=COLORS.tileText; ctx.font=`bold ${Math.max(18, bridge.tileSize*0.48)}px ui-sans-serif`; ctx.fillText(bridge.declension+" Declension", W/2, bridge.y0-32);
@@ -768,8 +1269,9 @@ function roundRect(x,y,w,h,r,fill,stroke){ ctx.beginPath(); ctx.moveTo(x+r,y); c
 function fitText(text, x, y, maxW){
   // Base size from tile, boosted on phones
   const base = bridge ? bridge.tileSize : 22;
-  const start = Math.floor(base * (IS_SMALL ? 0.60 : 0.46));  // bigger on phones
-  const minSize = Math.max(IS_SMALL ? 18 : 16, Math.floor(base * (IS_SMALL ? 0.48 : 0.36)));
+  // Increase starting and minimum font sizes for better legibility.
+  const start = Math.floor(base * (IS_SMALL ? 0.70 : 0.55));  // bigger on phones and desktop
+  const minSize = Math.max(IS_SMALL ? 20 : 18, Math.floor(base * (IS_SMALL ? 0.58 : 0.46)));
 
   let size = start;
   ctx.font = `${size}px ui-sans-serif`;
@@ -834,22 +1336,65 @@ function runSelfTests(){
 initCritters();
 restartRun();
 runSelfTests();
+// Debug: display toast on load to verify script execution
 let last=performance.now();
 function loop(now){
   const dt=Math.min(0.033,(now-last)/1000); last=now;
     if (!bridge && phase === PHASE_BRIDGES) {
     console.log("[loop] bridge is null while in BRIDGES phase");
   }
+  // Update day/night cycle each frame so colours and stars transition smoothly
+  updateDayNight(dt);
+  // Update drifting clouds and birds regardless of phase
+  updateClouds(dt);
+  updateBirds(dt);
   if(phase===PHASE_BRIDGES){
-    const gGrad=ctx.createLinearGradient(0,0,0,H); gGrad.addColorStop(0,COLORS.grass1); gGrad.addColorStop(1,COLORS.grass2);
-    ctx.fillStyle=gGrad; ctx.fillRect(0,0,W,H);
-    drawFlowers(now); drawRiver(now); updateLilyPads(dt); drawLilyPads(); maybeSpawnFish(dt); updateFishes(dt); drawFishes(); drawBridge(); drawBugs(now); updateJump(dt); drawFrog(); drawParticles(dt); drawRainbowBanner(); updateTimer();
-  } else if(phase===PHASE_MEADOW){
-    drawMeadowBackground(now);
-    updateMeadow(dt);
-    drawButterflies();
-    for(const f of meadow.players){ drawFrogEntity(f); }
+    // Draw the grassy ground gradient
+    const gGrad = ctx.createLinearGradient(0, 0, 0, H);
+    gGrad.addColorStop(0, COLORS.grass1);
+    gGrad.addColorStop(1, COLORS.grass2);
+    ctx.fillStyle = gGrad;
+    ctx.fillRect(0, 0, W, H);
+    // Night sky stars
+    drawStars(now);
+    // Distant mountains
+    drawMountains();
+    // Clouds drift in front of mountains but behind birds
+    drawClouds();
+    // Flying birds
+    drawBirds();
+    // Foreground elements
+    drawFlowers(now);
+    drawRiver(now);
+    updateLilyPads(dt);
+    drawLilyPads();
+    maybeSpawnFish(dt);
+    updateFishes(dt);
+    drawFishes();
+    drawBridge();
+    drawBugs(now);
+    updateJump(dt);
+    drawFrog();
     drawParticles(dt);
+    drawRainbowBanner();
+    updateTimer();
+  } else if(phase===PHASE_MEADOW){
+    // Meadow phase: draw environment then entities.  Use day/night colours.
+    drawMeadowBackground(now);
+    // Draw distant mountains and sky elements behind the meadow.
+    drawStars(now);
+    drawMountains();
+    drawClouds();
+    drawBirds();
+    // Update game state for the meadow
+    updateMeadow(dt);
+    // Decorative butterflies fluttering around
+    drawButterflies();
+    // Render all frogs in the meadow (player and AI).  They bounce and collide.
+    for(const f of meadow.players){ drawFrogEntity(f); }
+    // Render particle effects (sparkles, rings, etc.)
+    drawParticles(dt);
+    // Draw overlay UI (win message)
     drawMeadowOverlay();
   }
 
