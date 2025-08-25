@@ -991,13 +991,17 @@ function drawAccessory(f){
   // Determine drawing parameters based on accessory type
   switch(f.accessory){
     case 'crown': {
-      // Draw a small crown above the frog's head
-      const width = 22;
-      const height = 10;
-      const baseY = -28; // position above eyes
+      // Draw a crown above the frog's head.  Use the frog's radius to
+      // scale the accessory so it remains visible on different screen
+      // sizes and device pixel ratios.  The crown sits above the
+      // frog's eyes at a distance proportional to its size.
+      const size = f.r || 18;
+      const width = size * 1.4;
+      const height = size * 0.5;
+      const baseY = -size * 1.4;
       ctx.fillStyle = '#ffd700';
       ctx.strokeStyle = '#cfa500';
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = Math.max(1, size * 0.07);
       // Crown base
       ctx.beginPath();
       ctx.rect(-width/2, baseY, width, height);
@@ -1005,11 +1009,11 @@ function drawAccessory(f){
       ctx.stroke();
       // Three spikes
       for(let i=-1;i<=1;i++){
-        const spikeX = i * width/4;
+        const spikeX = i * width/3;
         ctx.beginPath();
-        ctx.moveTo(spikeX - width/8, baseY);
-        ctx.lineTo(spikeX, baseY - height*0.8);
-        ctx.lineTo(spikeX + width/8, baseY);
+        ctx.moveTo(spikeX - width*0.15, baseY);
+        ctx.lineTo(spikeX, baseY - height*1.0);
+        ctx.lineTo(spikeX + width*0.15, baseY);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -1017,26 +1021,83 @@ function drawAccessory(f){
       break;
     }
     case 'bandana': {
-      // Draw a bandana across the frog's forehead
-      const bandWidth = 24;
-      const bandHeight = 4;
-      const yOff = -16;
+      // Draw a bandana across the frog's forehead.  Scale based on the
+      // frog's radius so it fits snugly around the head.
+      const size = f.r || 18;
+      const bandWidth = size * 1.6;
+      const bandHeight = size * 0.25;
+      const yOff = -size * 0.9;
       ctx.fillStyle = '#c0392b';
       ctx.strokeStyle = '#8e2b20';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = Math.max(1, size * 0.05);
       ctx.beginPath();
       ctx.rect(-bandWidth/2, yOff, bandWidth, bandHeight);
       ctx.fill();
       ctx.stroke();
       // Small knot on right side
       ctx.beginPath();
-      ctx.rect(bandWidth/2 - 4, yOff + bandHeight/2 - 2, 6, 4);
+      ctx.rect(bandWidth/2 - bandHeight, yOff + bandHeight * 0.5 - bandHeight * 0.3, bandHeight * 1.2, bandHeight * 0.6);
       ctx.fill();
       ctx.stroke();
       break;
     }
   }
   ctx.restore();
+}
+
+// Draw a cosmetic accessory on a frog while the drawing context is
+// already translated to the frog's center and scaled appropriately.
+// This helper assumes the coordinate system is local to the frog
+// (0,0 at the frog's center) and uses the frog's `r` property to
+// determine relative sizes.  Accessories are ignored if none is set.
+function drawAccessoryOnFrog(f){
+  if(!f.accessory) return;
+  const size = f.r || 18;
+  switch(f.accessory){
+    case 'crown': {
+      const width = size * 1.4;
+      const height = size * 0.5;
+      const baseY = -size * 1.4;
+      ctx.fillStyle = '#ffd700';
+      ctx.strokeStyle = '#cfa500';
+      ctx.lineWidth = Math.max(1, size * 0.07);
+      // Base rectangle
+      ctx.beginPath();
+      ctx.rect(-width/2, baseY, width, height);
+      ctx.fill();
+      ctx.stroke();
+      // Spikes
+      for(let i=-1;i<=1;i++){
+        const spikeX = i * width / 3;
+        ctx.beginPath();
+        ctx.moveTo(spikeX - width*0.15, baseY);
+        ctx.lineTo(spikeX, baseY - height);
+        ctx.lineTo(spikeX + width*0.15, baseY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'bandana': {
+      const bandWidth = size * 1.6;
+      const bandHeight = size * 0.25;
+      const yOff = -size * 0.9;
+      ctx.fillStyle = '#c0392b';
+      ctx.strokeStyle = '#8e2b20';
+      ctx.lineWidth = Math.max(1, size * 0.05);
+      ctx.beginPath();
+      ctx.rect(-bandWidth/2, yOff, bandWidth, bandHeight);
+      ctx.fill();
+      ctx.stroke();
+      // Knot on right side
+      ctx.beginPath();
+      ctx.rect(bandWidth/2 - bandHeight, yOff + bandHeight * 0.2, bandHeight * 1.2, bandHeight * 0.6);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+  }
 }
 
 /***********************
@@ -1575,9 +1636,9 @@ function drawFrogEntity(f){
   ctx.globalAlpha=1;
   ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(-8,-10,4,0,Math.PI*2); ctx.arc(8,-10,4,0,Math.PI*2); ctx.fill(); ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(-8,-10,1.8,0,Math.PI*2); ctx.arc(8,-10,1.8,0,Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.moveTo(-12,6-hop*4); ctx.lineTo(-18,10-hop*2); ctx.moveTo(12,6-hop*4); ctx.lineTo(18,10-hop*2); ctx.stroke();
+  // Draw accessory within the frog's local coordinate system
+  drawAccessoryOnFrog(f);
   ctx.restore();
-  // Render any accessory on this frog after restoring context
-  drawAccessory(f);
 }
 
 function drawMeadowOverlay(){
@@ -1791,6 +1852,10 @@ const frogBase = IS_SMALL ? Math.min(20, tile * 0.50) : 22; // was fixed 22
 const baseX = frogBase;
 const baseY = Math.round(frogBase * 0.73);
 
+  // Store frog radius for accessory scaling.  This allows the
+  // accessory drawing helper to size decorations relative to the frog.
+  frog.r = baseX;
+
   ctx.save(); ctx.translate(frog.x,frog.y); ctx.scale(sx,sy);
   // body fill (rainbow unlock after 5 runs)
   if (frog.rainbow) {
@@ -1805,9 +1870,13 @@ const baseY = Math.round(frogBase * 0.73);
   ctx.globalAlpha=1;
   ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(-9,-12,5,0,Math.PI*2); ctx.arc(9,-12,5,0,Math.PI*2); ctx.fill(); ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(-9,-12,2.5,0,Math.PI*2); ctx.arc(9,-12,2.5,0,Math.PI*2); ctx.fill();
   ctx.strokeStyle="#2b7c35"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-14,10); ctx.lineTo(-20,18); ctx.moveTo(14,10); ctx.lineTo(20,18); ctx.stroke();
+  // Draw accessory on the frog while still in its local coordinate
+  // system so it scales and positions correctly.  This call must
+  // occur before restoring the context.
+  drawAccessoryOnFrog(frog);
   ctx.restore();
-  // Draw accessory on player frog if unlocked
-  drawAccessory(frog);
+  // Accessories for the main frog are drawn above; nothing further
+  // needed here.
 }
 
 /***********************
