@@ -380,7 +380,11 @@ let mountains = [];
 const clouds = [];   // drifting clouds across the sky
 
 function resize(){
-  const ratio = 16/9;
+  // Determine the aspect ratio based on device orientation.  In landscape
+  // mode we preserve the traditional 16:9 layout; in portrait mode we flip
+  // the ratio to 9:16 to make better use of narrow screens (e.g. phones).
+  const isLandscape = window.innerWidth > window.innerHeight;
+  const ratio = isLandscape ? (16/9) : (9/16);
   const wrapEl = document.getElementById("wrap");
   const header = document.querySelector("header");
   const footer = document.querySelector("footer");
@@ -401,9 +405,16 @@ const chromeH = IS_SMALL ? 0 : (
 const availH = Math.max(220, Math.floor(window.innerHeight - chromeH));
 
 
-  // Largest exact 16:9 that fits inside availW x availH
-  let cssW = Math.min(availW, Math.floor(availH * ratio));
-  let cssH = Math.floor(cssW / ratio);
+  // Compute canvas dimensions based on orientation.  In landscape we
+  // constrain the width first; in portrait we constrain the height first.
+  let cssW, cssH;
+  if (isLandscape) {
+    cssW = Math.min(availW, Math.floor(availH * ratio));
+    cssH = Math.floor(cssW / ratio);
+  } else {
+    cssH = Math.min(availH, Math.floor(availW / ratio));
+    cssW = Math.floor(cssH * ratio);
+  }
 
   const rawDPR = window.devicePixelRatio || 1;
   DPR = Math.max(1, Math.min(3, rawDPR)); // allow up to 3x on phones for sharper text
