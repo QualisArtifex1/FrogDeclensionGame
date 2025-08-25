@@ -320,6 +320,44 @@ let nextAvatar = { color:"green", pattern:null, rainbow:false };
 let playthroughs = 0;        // counts this session only
 let rainbowShown = false;    // banner only once per session
 
+// Achievements and unlockables.  Unlocks persist across sessions via
+// localStorage and grant cosmetic items (accessories) for the frog.
+const ACHIEVEMENTS = {
+  noMistakes: {
+    name: "No Mistakes",
+    description: "Complete all bridges without a single wrong step.",
+    unlock: "crown"
+  },
+  fastRun: {
+    name: "Fast Runner",
+    description: "Finish a full run under one minute.",
+    unlock: "bandana"
+  }
+};
+let unlocks = {};
+
+// Weather system variables.  Weather events like rain or snow spawn
+// decorative particles to enhance immersion.  A weather event runs for
+// a finite duration and then clears.  See initWeather()/updateWeather()
+// for details.
+let currentWeather = 'none';
+let weatherDuration = 0;
+let weatherTimer = 0;
+const raindrops = [];
+const snowflakes = [];
+
+// Logs drifting across the river add more life to the scene.  They are
+// purely decorative and do not affect gameplay.
+const logs = [];
+
+// Backdrop type selects between mountains and a temple silhouette.
+let backdropType = 'mountains';
+
+// Timers for spawning rain and snow particles.  These are used by
+// updateWeather() to control the frequency of particle generation.
+let rainSpawnTimer = 0;
+let snowSpawnTimer = 0;
+
 // game phases
 const PHASE_BRIDGES = "bridges";
 const PHASE_MEADOW  = "meadow";
@@ -336,6 +374,11 @@ let lastRunElapsed = 0;
 let best = localStorage.getItem("latinFrogBest") ? parseFloat(localStorage.getItem("latinFrogBest")) : null;
 let targetRow = 0;        // which row is currently being answered
 let selectedCol = START_COL; // which column is currently highlighted
+
+// Track the number of mistakes (wrong selections) made during the current
+// run.  This counter resets when a new run starts and is used to
+// evaluate achievements.
+let mistakes = 0;
 
 /***********************
  * CANVAS & RESPONSIVE LAYOUT
@@ -449,7 +492,9 @@ if (IS_SMALL) {
   // before their arrays are used.
   if(typeof initStars === 'function') initStars();
   if(typeof initBirds === 'function') initBirds();
-  if(typeof initMountains === 'function') initMountains();
+  // Initialise the chosen backdrop (mountains or temple).  This function
+  // internally calls initMountains() when appropriate.
+  if (typeof initBackdrops === 'function') initBackdrops();
 
  // Recompute bridge geometry only after game is ready
 if (gameReady && phase === PHASE_BRIDGES) {
@@ -598,6 +643,11 @@ function initCritters(){
   for(let i=0;i<48;i++) flowers.push({x:Math.random()*W,y:RIVER_Y2+20+Math.random()*(H-(RIVER_Y2+20)),c:[COLORS.flower1,COLORS.flower2,COLORS.flower3,COLORS.flower4][i%4],s:4+Math.random()*5,t:Math.random()*6.28});
   for(let i=0;i<BEE_COUNT;i++) bees.push({x:Math.random()*W,y:Math.random()*H,a:Math.random()*6.28,sp:0.8+Math.random()*1.2});
   for(let i=0;i<60;i++) sparkles.push({x:Math.random()*W,y:Math.random()*H,t:Math.random()*6.28});
+  // Decorative logs drifting across the river
+  initLogs();
+  // Choose a new weather pattern for this run.  Weather only occurs on
+  // bridge phases and enhances immersion without affecting gameplay.
+  initWeather();
   // Assign a ripple timer to each lily pad so that ripples appear at random
   // intervals.  This property is decremented in updateLilyPads().
   for(const p of lilyPads){
@@ -663,6 +713,330 @@ function drawLilyPads(){
     ctx.stroke();
     ctx.restore();
   }
+}
+
+/***********************
+ * WEATHER SYSTEM
+ *
+ * Adds atmospheric effects like rain and snow.  Weather events are
+ * selected randomly when a run begins.  Each event lasts for a fixed
+ * duration and automatically stops.  Weather particles are updated
+ * every frame.  They are purely decorative and have no effect on
+ * gameplay.
+ ***********************/
+function initWeather(){
+  // Choose a random weather pattern.  Rain and snow occur less often
+  // than clear conditions.
+  const options = ['none','none','rain','snow'];
+  currentWeather = options[Math.floor(Math.random() * options.length)];
+  // Reset particle arrays and timers.
+  raindrops.length = 0;
+  snowflakes.length = 0;
+  rainSpawnTimer = 0;
+  snowSpawnTimer = 0;
+  if(currentWeather === 'rain' || currentWeather === 'snow'){
+    // Weather lasts between 20 and 40 seconds
+    weatherDuration = 20 + Math.random() * 20;
+    weatherTimer = weatherDuration;
+  } else {
+    weatherDuration = 0;
+    weatherTimer = 0;
+  }
+}
+
+function updateWeather(dt){
+  if(currentWeather === 'rain'){
+    // Spawn raindrops at a regular rate
+    rainSpawnTimer -= dt;
+    while(rainSpawnTimer <= 0){
+      rainSpawnTimer += 0.04; // new drop every 0.04s
+      const x = Math.random() * W;
+      const y = Math.random() * RIVER_Y1 * 0.9; // spawn within the sky region
+      const speed = 240 + Math.random() * 160;
+      raindrops.push({x, y, speed});
+    }
+    // Update raindrop positions
+    for(let i=raindrops.length-1;i>=0;i--){
+      const d = raindrops[i];
+      d.y += d.speed * dt;
+      // When a drop hits the river surface, it creates a splash and is removed
+      if(d.y > RIVER_Y2){
+        // Small ripple effect
+        addRing(d.x, RIVER_Y2, 6);
+        raindrops.splice(i, 1);
+      }
+    }
+  } else if(currentWeather === 'snow'){
+    // Spawn snowflakes at a slower rate
+    snowSpawnTimer -= dt;
+    while(snowSpawnTimer <= 0){
+      snowSpawnTimer += 0.08; // new flake every 0.08s
+      const x = Math.random() * W;
+      const y = Math.random() * RIVER_Y1 * 0.9;
+      const speed = 40 + Math.random() * 40;
+      const drift = (Math.random() * 2 - 1) * 30; // horizontal drift
+      const radius = 1.5 + Math.random() * 2;
+      snowflakes.push({x, y, speed, drift, r: radius});
+    }
+    // Update snowflake positions
+    for(let i=snowflakes.length-1;i>=0;i--){
+      const f = snowflakes[i];
+      f.y += f.speed * dt;
+      f.x += f.drift * dt;
+      if(f.y > RIVER_Y2 || f.x < -20 || f.x > W + 20){
+        snowflakes.splice(i,1);
+      }
+    }
+  }
+  // Countdown weather timer.  When it expires, end the current event.
+  if(weatherTimer > 0){
+    weatherTimer -= dt;
+    if(weatherTimer <= 0){
+      currentWeather = 'none';
+      raindrops.length = 0;
+      snowflakes.length = 0;
+    }
+  }
+}
+
+function drawWeather(){
+  ctx.save();
+  if(currentWeather === 'rain'){
+    ctx.strokeStyle = 'rgba(200,200,255,0.5)';
+    ctx.lineWidth = 1;
+    ctx.lineCap = 'round';
+    for(const d of raindrops){
+      ctx.beginPath();
+      // draw small slanted line for raindrop
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x + 0, d.y + 6);
+      ctx.stroke();
+    }
+  } else if(currentWeather === 'snow'){
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    for(const f of snowflakes){
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/***********************
+ * LOGS: Decorative floating logs
+ *
+ * Logs drift horizontally across the river.  They provide additional
+ * visual interest without interacting with gameplay.  Logs are
+ * initialised along with other critters and reset whenever the run
+ * restarts.
+ ***********************/
+function initLogs(){
+  logs.length = 0;
+  const count = 5;
+  for(let i=0;i<count;i++){
+    const width = 40 + Math.random() * 60;
+    const x = Math.random() * W;
+    const y = RIVER_Y1 + 30 + Math.random() * (RIVER_Y2 - RIVER_Y1 - 60);
+    const speed = 20 + Math.random() * 40;
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    logs.push({x, y, w: width, h: 6, speed, dir});
+  }
+}
+
+function updateLogs(dt){
+  for(const log of logs){
+    log.x += log.speed * log.dir * dt;
+    if(log.dir > 0 && log.x - log.w > W + 50){
+      log.x = -log.w - 50;
+    } else if(log.dir < 0 && log.x + log.w < -50){
+      log.x = W + 50;
+    }
+  }
+}
+
+function drawLogs(){
+  ctx.save();
+  ctx.fillStyle = '#a67845';
+  for(const log of logs){
+    ctx.beginPath();
+    ctx.rect(log.x, log.y, log.w, log.h);
+    ctx.fill();
+    // subtle darker outline on top edge
+    ctx.fillStyle = shadeColor('#a67845', -0.15);
+    ctx.fillRect(log.x, log.y, log.w, 1);
+    ctx.fillStyle = '#a67845';
+  }
+  ctx.restore();
+}
+
+/***********************
+ * ACHIEVEMENTS & UNLOCKS
+ *
+ * Evaluate performance after each run to determine if any achievements
+ * have been earned.  Achievements unlock cosmetic accessories for
+ * the player's frog.  Unlocks persist in localStorage under the
+ * key "latinFrogUnlocks".  When new items are unlocked, a
+ * celebration banner is displayed similar to the rainbow frog unlock.
+ ***********************/
+
+function loadUnlocks(){
+  try{
+    const raw = localStorage.getItem('latinFrogUnlocks');
+    unlocks = raw ? JSON.parse(raw) : {};
+  } catch(err){
+    console.error('Error loading unlocks', err);
+    unlocks = {};
+  }
+}
+
+function saveUnlocks(){
+  try{
+    localStorage.setItem('latinFrogUnlocks', JSON.stringify(unlocks));
+  } catch(err){
+    console.error('Error saving unlocks', err);
+  }
+}
+
+function evaluateAchievements(){
+  const stats = { mistakes, time: lastRunElapsed };
+  const newlyUnlocked = [];
+  for(const key in ACHIEVEMENTS){
+    if(!unlocks[key]){
+      const ach = ACHIEVEMENTS[key];
+      // define conditions here rather than referencing functions in ACHIEVEMENTS
+      let achieved = false;
+      if(key === 'noMistakes'){
+        achieved = (stats.mistakes === 0);
+      } else if(key === 'fastRun'){
+        achieved = (stats.time < 60);
+      }
+      if(achieved){
+        unlocks[key] = true;
+        newlyUnlocked.push(ach.unlock);
+      }
+    }
+  }
+  if(newlyUnlocked.length > 0){
+    saveUnlocks();
+    // Assign the last unlocked item as the next accessory
+    const accessory = newlyUnlocked[newlyUnlocked.length - 1];
+    nextAvatar.accessory = accessory;
+    // Show unlock banner with confetti
+    triggerUnlockBanner(accessory);
+  }
+}
+
+// Display an unlock banner celebrating a newly earned accessory.  The
+// effect is similar to the rainbow unlock banner but uses a customised
+// message and confetti colours.  After the banner finishes, it hides
+// automatically.
+function triggerUnlockBanner(accessory){
+  // Reset confetti and configure colours based on accessory
+  confetti.length = 0;
+  for(let i=0;i<180;i++){
+    const colourPool = [COLORS.confetti1, COLORS.confetti2, COLORS.confetti3, COLORS.confetti4, COLORS.confetti5, COLORS.confetti6];
+    const c = colourPool[i % colourPool.length];
+    confetti.push({x: Math.random()*W, y: -30 - Math.random()*40, vx: (Math.random()*2-1)*80, vy: 120 + Math.random()*160, rot: Math.random()*6.28, vr: (Math.random()*2-1)*3, color: c, life: 3 + Math.random()*2, t: 0, sz: 2 + Math.random()*3});
+  }
+  unlockBanner.show = true;
+  unlockBanner.t = 0;
+  unlockBanner.dur = 4.0;
+  unlockBanner.accessory = accessory;
+}
+
+// Unlock banner state
+const unlockBanner = { show: false, t: 0, dur: 4.0, accessory: null };
+
+function drawUnlockBanner(){
+  if(!unlockBanner.show) return;
+  unlockBanner.t += 1/60;
+  const a = Math.min(1, unlockBanner.t / 0.6);
+  ctx.save();
+  ctx.globalAlpha = a;
+  // Semi-transparent veil
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(0, 0, W, H);
+  // Banner box
+  const bw = W * 0.75;
+  const bh = 100;
+  ctx.fillStyle = 'rgba(255,255,255,0.97)';
+  ctx.fillRect((W - bw)/2, H * 0.25, bw, bh);
+  // Message
+  ctx.fillStyle = COLORS.ui;
+  ctx.font = '900 32px ui-sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('NEW ACCESSORY UNLOCKED!', W/2, H*0.25 + bh*0.35);
+  // Subtext with accessory name
+  ctx.font = '600 20px ui-sans-serif';
+  ctx.fillText('Unlocked: ' + unlockBanner.accessory.toUpperCase(), W/2, H*0.25 + bh*0.70);
+  ctx.restore();
+  // Draw confetti
+  updateConfetti(1/60);
+  drawConfetti();
+  if(unlockBanner.t > unlockBanner.dur){
+    unlockBanner.show = false;
+  }
+}
+
+// Draw an accessory on a frog entity.  Accessories are simple
+// decorations positioned relative to the frog's coordinates.  Add
+// additional accessories by extending this function.  Accessories are
+// supported for both the bridge frog and meadow frogs.
+function drawAccessory(f){
+  if(!f.accessory) return;
+  ctx.save();
+  ctx.translate(f.x, f.y);
+  // Determine drawing parameters based on accessory type
+  switch(f.accessory){
+    case 'crown': {
+      // Draw a small crown above the frog's head
+      const width = 22;
+      const height = 10;
+      const baseY = -28; // position above eyes
+      ctx.fillStyle = '#ffd700';
+      ctx.strokeStyle = '#cfa500';
+      ctx.lineWidth = 1.2;
+      // Crown base
+      ctx.beginPath();
+      ctx.rect(-width/2, baseY, width, height);
+      ctx.fill();
+      ctx.stroke();
+      // Three spikes
+      for(let i=-1;i<=1;i++){
+        const spikeX = i * width/4;
+        ctx.beginPath();
+        ctx.moveTo(spikeX - width/8, baseY);
+        ctx.lineTo(spikeX, baseY - height*0.8);
+        ctx.lineTo(spikeX + width/8, baseY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'bandana': {
+      // Draw a bandana across the frog's forehead
+      const bandWidth = 24;
+      const bandHeight = 4;
+      const yOff = -16;
+      ctx.fillStyle = '#c0392b';
+      ctx.strokeStyle = '#8e2b20';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.rect(-bandWidth/2, yOff, bandWidth, bandHeight);
+      ctx.fill();
+      ctx.stroke();
+      // Small knot on right side
+      ctx.beginPath();
+      ctx.rect(bandWidth/2 - 4, yOff + bandHeight/2 - 2, 6, 4);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+  }
+  ctx.restore();
 }
 
 /***********************
@@ -801,6 +1175,81 @@ function drawMountains(){
 }
 
 /***********************
+ * BACKDROP INITIALISATION & DRAWING
+ *
+ * The backdrop can be either a range of mountains (default) or a
+ * stylised Roman temple silhouette.  A backdrop type is chosen when
+ * the layout is initialised (see resize()) and persists for the
+ * duration of the run.  Calling initBackdrops() resets the current
+ * backdrop and prepares any necessary structures.
+ ***********************/
+function initBackdrops(){
+  // Randomly pick between mountains (70%) and temple (30%).
+  backdropType = (Math.random() < 0.7) ? 'mountains' : 'temple';
+  if(backdropType === 'mountains'){
+    if(typeof initMountains === 'function') initMountains();
+  } else {
+    // For temples we don't need to precompute shapes; drawing is done
+    // procedurally in drawTemple().  However, we still clear the
+    // mountains array so that stale data is not drawn inadvertently.
+    mountains.length = 0;
+  }
+}
+
+// Draw the selected backdrop.  Delegates to drawMountains() or
+// drawTemple() depending on `backdropType`.  If `backdropType` is
+// unknown, falls back to mountains.
+function drawBackdrop(){
+  if(backdropType === 'temple'){
+    drawTemple();
+  } else {
+    drawMountains();
+  }
+}
+
+// Render a simplified Roman temple silhouette along the horizon.  The
+// silhouette consists of a base platform, evenly spaced columns, and a
+// triangular pediment.  Colours and opacities mirror those used for
+// mountains to blend naturally with the scene.  This function does not
+// depend on any precomputed arrays.
+function drawTemple(){
+  ctx.save();
+  // Determine the overall dimensions relative to the width and river
+  // height.  The temple occupies 60% of the canvas width and 40% of
+  // the vertical distance above the river.  It is centred horizontally.
+  const templeWidth = W * 0.6;
+  const templeHeight = RIVER_Y1 * 0.4;
+  const baseHeight = templeHeight * 0.15;
+  const columnHeight = templeHeight * 0.55;
+  const roofHeight = templeHeight * 0.30;
+  const startX = (W - templeWidth) / 2;
+  const baseY = RIVER_Y1;
+  // Draw base platform
+  ctx.fillStyle = 'rgba(34,64,34,0.6)';
+  ctx.beginPath();
+  ctx.rect(startX, baseY - baseHeight, templeWidth, baseHeight);
+  ctx.fill();
+  // Determine columns: 5 evenly spaced
+  const colCount = 5;
+  const colWidth = templeWidth / (colCount * 2);
+  const gap = (templeWidth - colCount * colWidth) / (colCount + 1);
+  for(let i=0;i<colCount;i++){
+    const cx = startX + gap + i * (colWidth + gap);
+    ctx.beginPath();
+    ctx.rect(cx, baseY - baseHeight - columnHeight, colWidth, columnHeight);
+    ctx.fill();
+  }
+  // Draw roof (pediment) as a triangle
+  ctx.beginPath();
+  ctx.moveTo(startX, baseY - baseHeight - columnHeight);
+  ctx.lineTo(startX + templeWidth / 2, baseY - baseHeight - columnHeight - roofHeight);
+  ctx.lineTo(startX + templeWidth, baseY - baseHeight - columnHeight);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+/***********************
  * CLOUDS: drifting across the sky
  * These functions create, update, and render fluffy clouds that move across
  * the canvas, adding a layer of depth and whimsy. Clouds are drawn as a
@@ -928,7 +1377,19 @@ function confirmSelection(){
 function startJump(x,y,cb){ frog.jumping=true; frog.jT=0; frog.jFrom={x:frog.x,y:frog.y}; frog.jTo={x,y}; frog.onJumpDone=cb; }
 function updateJump(dt){ if(!frog.jumping) return; frog.jT+=dt*3.2; const t=Math.min(1,frog.jT); const e=t<0.5?2*t*t:-1+(4-2*t)*t; frog.x=frog.jFrom.x+(frog.jTo.x-frog.jFrom.x)*e; frog.y=frog.jFrom.y+(frog.jTo.y-frog.jFrom.y)*e; if(t>=1){ frog.jumping=false; frog.onJumpDone&&frog.onJumpDone(); }}
 
-function wrongStep(x,y){   addSplash(x,y);   setTimeout(()=>{     frog.lives--;     if (frog.lives <= 0) {       triggerGameOver();     } else {       resetToBridgeStart();     }   }, 260); }
+function wrongStep(x,y){
+  addSplash(x,y);
+  // Increment mistake counter for achievement tracking
+  mistakes++;
+  setTimeout(() => {
+    frog.lives--;
+    if (frog.lives <= 0) {
+      triggerGameOver();
+    } else {
+      resetToBridgeStart();
+    }
+  }, 260);
+}
 function resetToBridgeStart(){ frog.onBridge=false; frog.x=startX; frog.y=startY; targetRow=0; selectedCol=START_COL; }
 
 /***********************
@@ -937,7 +1398,11 @@ function resetToBridgeStart(){ frog.onBridge=false; frog.x=startX; frog.y=startY
 function loadBridge(levelIdx, keepTimer=false){
   bridge = makeBridge(levelIdx);
   frog.lives = LIVES_PER_BRIDGE;
-  frog.color = nextAvatar.color; frog.pattern = nextAvatar.pattern; frog.rainbow = !!nextAvatar.rainbow;
+  frog.color = nextAvatar.color;
+  frog.pattern = nextAvatar.pattern;
+  frog.rainbow = !!nextAvatar.rainbow;
+  // Apply any unlocked accessory to the frog for this run
+  frog.accessory = nextAvatar.accessory || null;
   startX = W/2; startY = bridge.y0 - bridge.tileSize/2 - 18; goalY = bridge.y0 + (bridge.tileSize+bridge.spacing)*TILE_ROWS + bridge.tileSize/2 + 18;
   frog.x=startX; frog.y=startY; frog.onBridge=false;
   targetRow=0; selectedCol=START_COL;
@@ -956,7 +1421,17 @@ function loadBridge(levelIdx, keepTimer=false){
   });
 }
 function finishBridge(success){ if(success){ level++; if(level>=TOTAL_BRIDGES){ enterMeadow(); } else { loadBridge(level,true); } } else { loadBridge(level,true); } }
-function restartRun(){ phase=PHASE_BRIDGES; level=0; runStartTime=performance.now(); loadBridge(0,false); }
+function restartRun(){
+  phase = PHASE_BRIDGES;
+  level = 0;
+  runStartTime = performance.now();
+  // Reset mistake counter at the start of a new run
+  mistakes = 0;
+  // Randomise weather and logs for the new run
+  initWeather();
+  initLogs();
+  loadBridge(0, false);
+}
 function updateTimer(){ const t=(performance.now()-runStartTime)/1000; uiTime.textContent=t.toFixed(1); uiLives.textContent=frog.lives; uiBest.textContent=(best? best.toFixed(1)+"s":"—"); }
 
 /***********************
@@ -968,10 +1443,14 @@ let meadow = MEADOW;
 function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 function makeFrog(x,y,opts={}){
   return {
-    x,y, vx:0, vy:0, r:18,
-    color: opts.color||"#3aa34a",
-    pattern: opts.pattern||"none", // "spots" | "stripes" | "band"
-    ai: opts.ai||false,
+    x, y,
+    vx: 0,
+    vy: 0,
+    r: 18,
+    color: opts.color || "#3aa34a",
+    pattern: opts.pattern || "none", // "spots" | "stripes" | "band"
+    ai: opts.ai || false,
+    accessory: opts.accessory || null,
     hop: 0,
     hopDur: 0,
     hopLeft: 0,
@@ -987,7 +1466,7 @@ function enterMeadow(){
   lastRunElapsed = (performance.now()-runStartTime)/1000;
   if(!best||lastRunElapsed<best){best=lastRunElapsed; localStorage.setItem("latinFrogBest", String(best));}
   meadow = { players:[], t:0, bannerT:0, input:{left:false,right:false,up:false,down:false,dx:0,dy:0}, butterflies:[] };
-  const player = makeFrog(-40, H*0.7, {color:nextAvatar.color, pattern:nextAvatar.pattern});
+  const player = makeFrog(-40, H*0.7, { color: nextAvatar.color, pattern: nextAvatar.pattern, accessory: nextAvatar.accessory });
   player.vx = 180; meadow.players.push(player);
   const aiCount = 8; // more frogs for joy
   for(let i=0;i<aiCount;i++){
@@ -998,6 +1477,8 @@ function enterMeadow(){
   }
   for(let i=0;i<28;i++) meadow.butterflies.push({x:Math.random()*W,y:Math.random()*H, a:Math.random()*6.28, sp:0.9+Math.random()*1.2});
   winOverlay.style.display = "none";
+  // Evaluate achievements for this run.  This may unlock accessories.
+  evaluateAchievements();
 }
 
 // keyboard for meadow: Enter = big jump
@@ -1095,6 +1576,8 @@ function drawFrogEntity(f){
   ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(-8,-10,4,0,Math.PI*2); ctx.arc(8,-10,4,0,Math.PI*2); ctx.fill(); ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(-8,-10,1.8,0,Math.PI*2); ctx.arc(8,-10,1.8,0,Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.moveTo(-12,6-hop*4); ctx.lineTo(-18,10-hop*2); ctx.moveTo(12,6-hop*4); ctx.lineTo(18,10-hop*2); ctx.stroke();
   ctx.restore();
+  // Render any accessory on this frog after restoring context
+  drawAccessory(f);
 }
 
 function drawMeadowOverlay(){
@@ -1323,6 +1806,8 @@ const baseY = Math.round(frogBase * 0.73);
   ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(-9,-12,5,0,Math.PI*2); ctx.arc(9,-12,5,0,Math.PI*2); ctx.fill(); ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(-9,-12,2.5,0,Math.PI*2); ctx.arc(9,-12,2.5,0,Math.PI*2); ctx.fill();
   ctx.strokeStyle="#2b7c35"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-14,10); ctx.lineTo(-20,18); ctx.moveTo(14,10); ctx.lineTo(20,18); ctx.stroke();
   ctx.restore();
+  // Draw accessory on player frog if unlocked
+  drawAccessory(frog);
 }
 
 /***********************
@@ -1344,6 +1829,8 @@ function runSelfTests(){
 /***********************
  * MAIN LOOP
  ***********************/
+// Load any saved cosmetic unlocks before starting the game
+loadUnlocks();
 initCritters();
 restartRun();
 runSelfTests();
@@ -1368,8 +1855,8 @@ function loop(now){
     ctx.fillRect(0, 0, W, H);
     // Night sky stars
     drawStars(now);
-    // Distant mountains
-    drawMountains();
+    // Draw selected backdrop (mountains or temple)
+    drawBackdrop();
     // Clouds drift in front of mountains but behind birds
     drawClouds();
     // Flying birds
@@ -1377,6 +1864,9 @@ function loop(now){
     // Foreground elements
     drawFlowers(now);
     drawRiver(now);
+    // Decorative logs drifting across the river
+    updateLogs(dt);
+    drawLogs();
     updateLilyPads(dt);
     drawLilyPads();
     maybeSpawnFish(dt);
@@ -1387,14 +1877,18 @@ function loop(now){
     updateJump(dt);
     drawFrog();
     drawParticles(dt);
+    // Weather overlay (rain or snow) on top of the scene
+    drawWeather();
+    // Celebrations and unlock banners
     drawRainbowBanner();
+    drawUnlockBanner();
     updateTimer();
   } else if(phase===PHASE_MEADOW){
     // Meadow phase: draw environment then entities.  Use day/night colours.
     drawMeadowBackground(now);
     // Draw distant mountains and sky elements behind the meadow.
     drawStars(now);
-    drawMountains();
+    drawBackdrop();
     drawClouds();
     drawBirds();
     // Update game state for the meadow
@@ -1405,8 +1899,12 @@ function loop(now){
     for(const f of meadow.players){ drawFrogEntity(f); }
     // Render particle effects (sparkles, rings, etc.)
     drawParticles(dt);
+    // Weather overlay also visible in meadow
+    drawWeather();
     // Draw overlay UI (win message)
     drawMeadowOverlay();
+    // Achievement unlock banner
+    drawUnlockBanner();
   }
 
   // Game Over overlay pass (on top)
