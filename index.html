@@ -909,7 +909,8 @@ function evaluateAchievements(){
       if(key === 'noMistakes'){
         achieved = (stats.mistakes === 0);
       } else if(key === 'fastRun'){
-        achieved = (stats.time < 60);
+        // Bandana unlock: finish a full run in under 85 seconds
+        achieved = (stats.time < 85);
       }
       if(achieved){
         unlocks[key] = true;
