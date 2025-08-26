@@ -1260,7 +1260,9 @@ function saveStats(){
 }
 
 function evaluateAchievements(){
-  const stats = { mistakes, time: lastRunElapsed };
+  // Use a separate object for the current run's results so we don't shadow
+  // the global stats variable.  runResult holds only per‑run fields.
+  const runResult = { mistakes, time: lastRunElapsed };
   const newlyUnlocked = [];
   for(const key in ACHIEVEMENTS){
     if(!unlocks[key]){
@@ -1268,10 +1270,10 @@ function evaluateAchievements(){
       // define conditions here rather than referencing functions in ACHIEVEMENTS
       let achieved = false;
       if(key === 'noMistakes'){
-        achieved = (stats.mistakes === 0);
+        achieved = (runResult.mistakes === 0);
       } else if(key === 'fastRun'){
         // Bandana unlock: finish a full run in under 85 seconds
-        achieved = (stats.time < 85);
+        achieved = (runResult.time < 85);
       } else if(key === 'seasonSpring'){
         achieved = (window.currentSeason === 'spring');
       } else if(key === 'seasonSummer'){
@@ -1284,8 +1286,10 @@ function evaluateAchievements(){
         // Mythical skin unlocks only if all other achievements are complete
         achieved = Object.keys(ACHIEVEMENTS).every(k => k === 'mythicalSkin' || unlocks[k]);
       } else if(key === 'persistentScholar'){
+        // Persistent Scholar unlocks after three consecutive runs with no mistakes
         achieved = (stats.streak >= 3);
       } else if(key === 'enduranceFrog'){
+        // Endurance Frog unlocks after 10 total runs across sessions
         achieved = (stats.totalRuns >= 10);
       }
       if(achieved){
