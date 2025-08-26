@@ -1067,6 +1067,9 @@ function startNextUnlockBanner(){
 
 // Unlock banner state
 const unlockBanner = { show: false, t: 0, dur: 4.0, accessory: null };
+// Queue of pending unlock banners.  When multiple items are unlocked
+// in one run, they are stored here and shown sequentially.
+const pendingUnlocks = [];
 
 function drawUnlockBanner(){
   if(!unlockBanner.show) return;
