@@ -159,6 +159,20 @@ let jakeModeActive = false;
 // is evaluated when the run finishes to award the Jake mode unlock.
 let currentRunJake = false;
 
+// Hard mode scrambles the order of grammatical cases for each bridge
+// run.  When active, the singular and plural case order is randomly
+// permuted at the start of the run and displayed in the legend.  Runs
+// completed in Hard mode unlock special skins.
+let hardModeActive = false;
+// Preserve the default order of cases (row indices 0..9).  This is used
+// to restore the standard order when Hard mode is deactivated.
+const DEFAULT_CASE_ORDER = Array.from({length: 10}, (_, i) => i);
+// The current case order applied to the bridge.  Initialized to the
+// default order; shuffled when Hard mode is activated.
+let caseOrder = DEFAULT_CASE_ORDER.slice();
+// Flag capturing whether the current run was started in Hard mode.
+let currentRunHard = false;
+
 // Buffer for capturing cheat codes.  Keeps the last few typed
 // characters to detect sequences like "cornish" or "skip".
 let cheatBuffer = "";
@@ -372,6 +386,29 @@ function updateDayNight(dt){
     starAlpha = Math.min(1, (phase - 0.6) / 0.4);
   }
 }
+
+/*
+ * updateCaseOrderLegend()
+ *
+ * When Hard mode is active, the order of grammatical cases is scrambled.
+ * This helper updates the legend in the footer to display the current
+ * case order for singular and plural forms.  The legend is assumed
+ * to have at least two entries, with the second entry showing the
+ * order text.  When Hard mode is disabled the default ordering
+ * (Nom Gen Dat Acc Abl) is displayed.
+ */
+function updateCaseOrderLegend(){
+  const tags = document.querySelectorAll('.legend .tag');
+  if(!tags || tags.length < 2) return;
+  if(hardModeActive){
+    const caseNames = ['Nom','Gen','Dat','Acc','Abl'];
+    const singular = caseOrder.slice(0, 5).map(i => caseNames[i % 5]);
+    const plural = caseOrder.slice(5).map(i => caseNames[i % 5]);
+    tags[1].textContent = 'Order — ' + singular.join(' ') + ' (Sg) → ' + plural.join(' ') + ' (Pl)';
+  } else {
+    tags[1].textContent = 'Order — Nom Gen Dat Acc Abl (Sg) → Nom Gen Dat Acc Abl (Pl)';
+  }
+}
 // --- mobile sizing helpers ---
 const MOBILE_BREAKPOINT = 480;
 let IS_SMALL = false; // updated in resize()
@@ -470,6 +507,16 @@ const ACHIEVEMENTS = {
     name: "Jake Mode",
     description: "???",
     unlock: "upsideDown"
+  },
+  hardMode: {
+    name: "Hard Mode",
+    description: "???",
+    unlock: "metalSkin"
+  },
+  unstoppable: {
+    name: "Unstoppable",
+    description: "???",
+    unlock: "brickSkin"
   }
 };
 let unlocks = {};
@@ -815,19 +862,42 @@ window.addEventListener('keydown', (e) => {
       cheatBuffer = '';
     } else if(cheatBuffer.endsWith('jake')){
       // Toggle Jake mode.  This flips the bridge orientation and
-      // reverses the left/right controls.  Restart the current run
-      // immediately to apply the new orientation.  Completing a run
-      // in Jake mode will unlock the upside‑down skin.  A second
-      // invocation of the code deactivates the mode.
+      // reverses the left/right controls.  Start a new run immediately
+      // to apply the new orientation.  Completing a run in Jake mode
+      // will unlock the upside‑down skin.  A second invocation of the
+      // code deactivates the mode.
       jakeModeActive = !jakeModeActive;
       if(jakeModeActive){
         showToast('Jake mode activated!');
       } else {
         showToast('Jake mode deactivated');
       }
-      // Immediately restart the run so the new orientation takes effect.
-      phase = PHASE_BRIDGES;
-      restartRun();
+      // Start a new run so the new orientation takes effect and flags
+      // (currentRunJake/currentRunHard) update correctly.
+      startRun();
+      cheatBuffer = '';
+    } else if(cheatBuffer.endsWith('hard')){
+      // Toggle Hard mode.  This scrambles or restores the case order
+      // used for the bridges.  Start a new run so the new order
+      // takes effect immediately and update the legend accordingly.
+      hardModeActive = !hardModeActive;
+      if(hardModeActive){
+        // Generate a random permutation of the ten case indices (0..9).
+        caseOrder = DEFAULT_CASE_ORDER.slice();
+        for(let i = caseOrder.length - 1; i > 0; i--){
+          const j = Math.floor(Math.random() * (i + 1));
+          [caseOrder[i], caseOrder[j]] = [caseOrder[j], caseOrder[i]];
+        }
+        showToast('Hard mode activated!');
+      } else {
+        // Restore the default order
+        caseOrder = DEFAULT_CASE_ORDER.slice();
+        showToast('Hard mode deactivated');
+      }
+      // Update the legend to reflect the current case order
+      if(typeof updateCaseOrderLegend === 'function') updateCaseOrderLegend();
+      // Start a new run to apply the new order and update flags
+      startRun();
       cheatBuffer = '';
     }
   }
@@ -1224,11 +1294,41 @@ function evaluateAchievements(){
       }
     }
   }
-  // Jake mode unlock: if the current run was played in Jake mode and
-  // the unlock has not yet been earned, grant the upside‑down skin.
-  if(!unlocks.jakeMode && currentRunJake){
+  // Jake mode unlock: if the run was started in Jake mode and the
+  // unlock has not yet been earned, grant the upside‑down skin.
+  // We use currentRunJake to capture the mode at the start of the run
+  // so that players cannot toggle Jake off before the end and still get
+  // the unlock.
+  // Evaluate cheat mode unlocks.  We base these on whether the run
+  // began or ended with Jake/Hard modes active.  currentRunJake and
+  // currentRunHard capture the state at the start of the run.  In
+  // practice players may toggle modes during a run, so we also
+  // consider the current active flags to ensure the unlock is granted
+  // if the mode remained enabled throughout the run.
+  const runJake = currentRunJake || jakeModeActive;
+  const runHard = currentRunHard || hardModeActive;
+  // Jake mode unlock: beat a run with Jake mode enabled.
+  if(!unlocks.jakeMode && runJake){
     unlocks.jakeMode = true;
     newlyUnlocked.push('upsideDown');
+  }
+  // Hard mode unlock: beat a run with Hard mode enabled.  When
+  // Unstoppable is unlocked the hard unlock will also be awarded.
+  if(!unlocks.hardMode && runHard){
+    unlocks.hardMode = true;
+    newlyUnlocked.push('metalSkin');
+  }
+  // Unstoppable unlock: beat a run with both Hard and Jake modes
+  // enabled.  This awards the brick skin and implicitly unlocks
+  // hardMode if it wasn't already.
+  if(!unlocks.unstoppable && runHard && runJake){
+    unlocks.unstoppable = true;
+    newlyUnlocked.push('brickSkin');
+    // Ensure the hardMode unlock is set as well
+    if(!unlocks.hardMode){
+      unlocks.hardMode = true;
+      newlyUnlocked.push('metalSkin');
+    }
   }
   if(newlyUnlocked.length > 0){
     saveUnlocks();
@@ -1237,7 +1337,7 @@ function evaluateAchievements(){
     // distinguished from accessories.  This will be overwritten by
     // the player's selection via the accessory chooser.
     const last = newlyUnlocked[newlyUnlocked.length - 1];
-    if(last === 'mythicalSkin' || last === 'upsideDown'){
+    if(last === 'mythicalSkin' || last === 'upsideDown' || last === 'metalSkin' || last === 'brickSkin'){
       nextAvatar.skin = last;
       nextAvatar.accessory = null;
     } else {
@@ -1252,7 +1352,7 @@ function evaluateAchievements(){
      * of the meadow phase.
      */
     if (phase === PHASE_MEADOW && meadow && meadow.players && meadow.players.length > 0) {
-      if(last === 'mythicalSkin' || last === 'upsideDown'){
+      if(last === 'mythicalSkin' || last === 'upsideDown' || last === 'metalSkin' || last === 'brickSkin'){
         meadow.players[0].skin = last;
         meadow.players[0].accessory = null;
       } else {
@@ -1398,7 +1498,7 @@ function showAccessorySelectOverlay(options){
     if(selected === 'none'){
       nextAvatar.accessory = null;
       nextAvatar.skin = null;
-    } else if(selected === 'mythicalSkin' || selected === 'upsideDown'){
+    } else if(selected === 'mythicalSkin' || selected === 'upsideDown' || selected === 'metalSkin' || selected === 'brickSkin'){
       // Treat these unlocks as skins
       nextAvatar.skin = selected;
       nextAvatar.accessory = null;
@@ -1456,6 +1556,8 @@ function prepareNewRun(){
   if(unlocks.persistentScholar){ options.push('laurelWreath'); }
   if(unlocks.enduranceFrog){ options.push('backpack'); }
   if(unlocks.jakeMode){ options.push('upsideDown'); }
+  if(unlocks.hardMode){ options.push('metalSkin'); }
+  if(unlocks.unstoppable){ options.push('brickSkin'); }
   // Always include 'none'
   options.push('none');
   const unique = [...new Set(options)];
@@ -1496,6 +1598,11 @@ function startRun(){
   }
   // Record whether this run is a Jake mode run for achievement
   currentRunJake = jakeModeActive;
+  // Record whether this run uses Hard mode for achievement
+  currentRunHard = hardModeActive;
+  // Update the case order legend whenever a run begins.  This
+  // ensures the UI reflects the currently active case order.
+  if(typeof updateCaseOrderLegend === 'function') updateCaseOrderLegend();
   // Reinitialize critters so flower and pad colours update to the new
   // theme.  Then reset the run.
   if(typeof initCritters === 'function') initCritters();
@@ -2022,7 +2129,11 @@ function drawClouds(){
 const TILE_SPACING_BASE = 8;
 gameReady = true;
 function makeBridge(levelIdx){
-  const seq = SEQS[levelIdx];
+  // Build the sequence of endings for this declension according to
+  // the current case order.  In normal mode caseOrder is [0..9]; in
+  // Hard mode it is a random permutation.  Each index refers to a
+  // row in ENDINGS_ROWS and each column (levelIdx) refers to a declension.
+  const seq = caseOrder.map((rowIndex) => ENDINGS_ROWS[rowIndex][BRIDGE_ORDER[levelIdx]]);
   const grid=[...Array(TILE_ROWS)].map(()=>[...Array(TILE_COLS)].map(()=>({ending:"",correct:false,glow:0,crack:0,dead:false})));
   const path = [];
 for (let r = 0; r < TILE_ROWS; r++) {
@@ -2177,6 +2288,13 @@ function restartRun(){
   runStartTime = performance.now();
   // Reset mistake counter at the start of a new run
   mistakes = 0;
+  // Capture current mode flags for achievement tracking.  If a run
+  // restarts outside of startRun(), ensure currentRunJake and
+  // currentRunHard reflect active modes.
+  currentRunJake = jakeModeActive;
+  currentRunHard = hardModeActive;
+  // Update the legend whenever the run restarts to reflect the case order
+  if(typeof updateCaseOrderLegend === 'function') updateCaseOrderLegend();
   // Randomise weather and logs for the new run
   initWeather();
   initLogs();
@@ -2336,8 +2454,26 @@ function drawFrogEntity(f){
   ctx.save(); ctx.translate(f.x, f.y - hopLift); ctx.scale(sx,sy);
   ctx.globalAlpha=0.25; ctx.fillStyle="#000"; ctx.beginPath(); ctx.ellipse(0,12,18,6,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
   ctx.strokeStyle="#2b7c35"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-14,8); ctx.lineTo(-20,16); ctx.moveTo(14,8); ctx.lineTo(20,16); ctx.stroke();
-  // Determine body fill: mythical skin > rainbow > plain colour
-  if (f.skin === 'mythicalSkin') {
+  // Determine body fill: special skins > rainbow > plain colour
+  if (f.skin === 'metalSkin') {
+    // Metal skin: cool grey gradient across the body.  Use the frog's radius
+    // to determine gradient length so that AI frogs of various sizes are
+    // consistently shaded.
+    const r = f.r || 20;
+    const mg = ctx.createLinearGradient(-r, -r * 0.8, r, r * 0.8);
+    mg.addColorStop(0, '#d1d6da');
+    mg.addColorStop(0.5, '#aeb4b9');
+    mg.addColorStop(1, '#8b9296');
+    ctx.fillStyle = mg;
+  } else if (f.skin === 'brickSkin') {
+    // Brick skin: warm gradient reminiscent of bricks.
+    const r = f.r || 20;
+    const bg = ctx.createLinearGradient(-r, -r * 0.8, r, r * 0.8);
+    bg.addColorStop(0, '#8b4513');
+    bg.addColorStop(0.5, '#b22222');
+    bg.addColorStop(1, '#5a0d0d');
+    ctx.fillStyle = bg;
+  } else if (f.skin === 'mythicalSkin') {
     const rg = ctx.createRadialGradient(0, 0, 0, 0, 0, 20);
     rg.addColorStop(0, '#7b2cbf');
     rg.addColorStop(0.5, '#0cc0df');
@@ -2638,7 +2774,22 @@ const baseY = Math.round(frogBase * 0.73);
 
   ctx.save(); ctx.translate(frog.x,frog.y); ctx.scale(sx,sy);
   // body fill prioritises special skins first, then rainbow, then plain colour
-  if (frog.skin === 'mythicalSkin') {
+  // Choose body fill based on special skins, rainbow state, or plain colour.
+  if (frog.skin === 'metalSkin') {
+    // Metal skin: use a cool grey gradient to suggest brushed steel.
+    const mg = ctx.createLinearGradient(-baseX, -baseY, baseX, baseY);
+    mg.addColorStop(0, '#d1d6da');
+    mg.addColorStop(0.5, '#aeb4b9');
+    mg.addColorStop(1, '#8b9296');
+    ctx.fillStyle = mg;
+  } else if (frog.skin === 'brickSkin') {
+    // Brick skin: warm brick tones fading to dark red.
+    const bg = ctx.createLinearGradient(-baseX, -baseY, baseX, baseY);
+    bg.addColorStop(0, '#8b4513');
+    bg.addColorStop(0.5, '#b22222');
+    bg.addColorStop(1, '#5a0d0d');
+    ctx.fillStyle = bg;
+  } else if (frog.skin === 'mythicalSkin') {
     // Mythical skin: radiant gradient blending purples and teals.  Use
     // a radial gradient centered on the frog to create a glow effect.
     const rg = ctx.createRadialGradient(0, 0, 0, 0, 0, baseX);
