@@ -72,7 +72,8 @@
   <div id="accOverlay" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:25; justify-content:center; align-items:center;">
     <div style="background:rgba(255,255,255,0.98); border:3px solid #cfe9ff; border-radius:18px; padding:20px 24px; max-width:320px; width:90%; box-shadow:0 12px 32px rgba(0,0,0,.2); text-align:center;">
       <h2 style="margin:0 0 12px 0; font-size:22px; color:#16324f;">Choose Accessory</h2>
-      <div id="accOptions" style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;"></div>
+      <div id="accOptions" style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;"></div>
+      <div id="accHints" style="font-size:12px; color:#555; margin-bottom:12px; text-align:left;"></div>
       <button id="accConfirmBtn" style="background: linear-gradient(to bottom, #16324f, #0f2238); color:white; border:none; border-radius:12px; padding:10px 18px; font-weight:700; box-shadow:0 4px 0 rgba(0,0,0,.2); cursor:pointer;">Start</button>
     </div>
   </div>
@@ -204,6 +205,9 @@ let starAlpha = 0;
 function applySeasonTheme(){
   const keys = Object.keys(SEASON_THEMES);
   const themeName = keys[Math.floor(Math.random()*keys.length)];
+  // Store the selected season globally so achievements can detect
+  // which season was active during the run.
+  window.currentSeason = themeName;
   const theme = SEASON_THEMES[themeName];
   for(const key in theme){
     if(key === 'flowers') continue;
@@ -333,6 +337,13 @@ let rainbowShown = false;    // banner only once per session
 
 // Achievements and unlockables.  Unlocks persist across sessions via
 // localStorage and grant cosmetic items (accessories) for the frog.
+/*
+ * Define all possible achievements.  Each entry includes a unique key,
+ * a human‑readable name, a description, and the cosmetic item it
+ * unlocks.  Seasonal achievements award special accessories when
+ * players complete a run in that specific season.  The mythical
+ * skin unlocks once all other items are earned.
+ */
 const ACHIEVEMENTS = {
   noMistakes: {
     name: "No Mistakes",
@@ -341,8 +352,33 @@ const ACHIEVEMENTS = {
   },
   fastRun: {
     name: "Fast Runner",
-    description: "Finish a full run under one minute.",
+    description: "Finish a full run under 85 seconds.",
     unlock: "bandana"
+  },
+  seasonSpring: {
+    name: "Spring Victor",
+    description: "Beat the game in Spring season.",
+    unlock: "flowerCrown"
+  },
+  seasonSummer: {
+    name: "Summer Victor",
+    description: "Beat the game in Summer season.",
+    unlock: "sunglasses"
+  },
+  seasonAutumn: {
+    name: "Autumn Victor",
+    description: "Beat the game in Autumn season.",
+    unlock: "acornCap"
+  },
+  seasonWinter: {
+    name: "Winter Victor",
+    description: "Beat the game in Winter season.",
+    unlock: "scarf"
+  },
+  mythicalSkin: {
+    name: "Mythical Skin",
+    description: "Unlock all other items to obtain a glowing skin.",
+    unlock: "mythicalSkin"
   }
 };
 let unlocks = {};
@@ -545,9 +581,10 @@ playAgainBtn.addEventListener("click", ()=>{
       color: pick.color,
       pattern: pick.pattern,
       rainbow: nextAvatar.rainbow,
-      // Preserve any unlocked accessory across runs so that
-      // achievements remain visible on the player frog
-      accessory: nextAvatar.accessory
+      // Preserve any unlocked accessory and skin across runs so that
+      // achievements remain visible on the player frog.
+      accessory: nextAvatar.accessory,
+      skin: nextAvatar.skin
     };
   }
 // increment runs and unlock rainbow after 5 (session-only)
@@ -913,8 +950,19 @@ function loadUnlocks(){
   // immediately appears when the game is restarted.  Prioritise
   // achievements in a consistent order (crown > bandana) so that
   // players see the most prestigious item if multiple are unlocked.
+  // Apply the most prestigious unlocked accessory or skin to nextAvatar.
+  // Prioritise crown > bandana > seasonal items.  If the mythical skin
+  // is unlocked, set the skin property (which overrides colours) and
+  // leave accessory unchanged until the player chooses.
+  if(unlocks.mythicalSkin){
+    nextAvatar.skin = 'mythicalSkin';
+  }
   if(unlocks.noMistakes){ nextAvatar.accessory = 'crown'; }
   else if(unlocks.fastRun){ nextAvatar.accessory = 'bandana'; }
+  else if(unlocks.seasonSpring){ nextAvatar.accessory = 'flowerCrown'; }
+  else if(unlocks.seasonSummer){ nextAvatar.accessory = 'sunglasses'; }
+  else if(unlocks.seasonAutumn){ nextAvatar.accessory = 'acornCap'; }
+  else if(unlocks.seasonWinter){ nextAvatar.accessory = 'scarf'; }
 }
 
 function saveUnlocks(){
@@ -938,6 +986,17 @@ function evaluateAchievements(){
       } else if(key === 'fastRun'){
         // Bandana unlock: finish a full run in under 85 seconds
         achieved = (stats.time < 85);
+      } else if(key === 'seasonSpring'){
+        achieved = (window.currentSeason === 'spring');
+      } else if(key === 'seasonSummer'){
+        achieved = (window.currentSeason === 'summer');
+      } else if(key === 'seasonAutumn'){
+        achieved = (window.currentSeason === 'autumn');
+      } else if(key === 'seasonWinter'){
+        achieved = (window.currentSeason === 'winter');
+      } else if(key === 'mythicalSkin'){
+        // Mythical skin unlocks only if all other achievements are complete
+        achieved = Object.keys(ACHIEVEMENTS).every(k => k === 'mythicalSkin' || unlocks[k]);
       }
       if(achieved){
         unlocks[key] = true;
@@ -1049,6 +1108,7 @@ function showAccessorySelectOverlay(options){
   // added here if desired.
   options.forEach((acc) => {
     const btn = document.createElement('button');
+    btn.dataset.acc = acc;
     btn.textContent = acc === 'none' ? 'None' : acc.charAt(0).toUpperCase() + acc.slice(1);
     btn.style.padding = '6px 10px';
     btn.style.borderRadius = '8px';
@@ -1061,7 +1121,7 @@ function showAccessorySelectOverlay(options){
       selected = acc;
       // Update highlighting
       Array.from(optsEl.children).forEach((child) => {
-        child.style.background = (child.textContent.toLowerCase() === (selected === 'none' ? 'none' : selected)) ? '#e0f0ff' : '#f5fbff';
+        child.style.background = (child.dataset.acc === selected) ? '#e0f0ff' : '#f5fbff';
       });
     });
     optsEl.appendChild(btn);
@@ -1070,14 +1130,44 @@ function showAccessorySelectOverlay(options){
   function confirmHandler(){
     overlay.style.display = 'none';
     confirmBtn.removeEventListener('click', confirmHandler);
-    // Apply selection to nextAvatar; use null for "none"
-    nextAvatar.accessory = (selected === 'none') ? null : selected;
+    // Apply selection to nextAvatar; decide between accessory and skin.
+    if(selected === 'none'){
+      nextAvatar.accessory = null;
+      nextAvatar.skin = null;
+    } else if(selected === 'mythicalSkin'){
+      nextAvatar.skin = 'mythicalSkin';
+      nextAvatar.accessory = null;
+    } else {
+      nextAvatar.accessory = selected;
+      nextAvatar.skin = null;
+    }
     // Begin run
     startRun();
   }
   confirmBtn.addEventListener('click', confirmHandler);
   // Display overlay
   overlay.style.display = 'flex';
+
+    // Populate hints for locked items.  Show a list of items that are
+    // currently unavailable with a brief description.  Hints help
+    // players understand how to unlock new cosmetics.
+    const hintsEl = document.getElementById('accHints');
+    if(hintsEl){
+      const locked = [];
+      for(const key in ACHIEVEMENTS){
+        if(!unlocks[key]){
+          const ach = ACHIEVEMENTS[key];
+          // Derive a user‑friendly label from the unlock name
+          const label = ach.unlock.charAt(0).toUpperCase() + ach.unlock.slice(1);
+          locked.push(`${label}: ${ach.description}`);
+        }
+      }
+      if(locked.length > 0){
+        hintsEl.innerHTML = locked.map(item => `<div>🔒 ${item}</div>`).join('');
+      } else {
+        hintsEl.innerHTML = '';
+      }
+    }
 }
 
 // Determine which accessories are available based on unlocked
@@ -1087,18 +1177,36 @@ function showAccessorySelectOverlay(options){
 function prepareNewRun(){
   // Build a list of unlocked accessories.  Always include 'none'.
   const options = [];
+  // Gather unlocked items.  Each unlocked achievement adds its cosmetic
+  // item to the list.  Mythical skin is treated like an accessory here
+  // so that players can choose it.  If nothing is unlocked the only
+  // option will be 'none'.
   if(unlocks.noMistakes){ options.push('crown'); }
   if(unlocks.fastRun){ options.push('bandana'); }
-  // Future achievements can append here (e.g. monocle, helmet)
+  if(unlocks.seasonSpring){ options.push('flowerCrown'); }
+  if(unlocks.seasonSummer){ options.push('sunglasses'); }
+  if(unlocks.seasonAutumn){ options.push('acornCap'); }
+  if(unlocks.seasonWinter){ options.push('scarf'); }
+  if(unlocks.mythicalSkin){ options.push('mythicalSkin'); }
+  // Always include 'none'
   options.push('none');
-  // Remove duplicates (just in case)
   const unique = [...new Set(options)];
-  // If more than one choice exists, prompt the player
   if(unique.length > 1){
     showAccessorySelectOverlay(unique);
   } else {
-    // Single option: assign it and start immediately
-    nextAvatar.accessory = (unique[0] === 'none') ? null : unique[0];
+    // Only one option; assign it then start the run.  Determine whether
+    // it is a skin or accessory.
+    const only = unique[0];
+    if(only === 'none'){
+      nextAvatar.accessory = null;
+      nextAvatar.skin = null;
+    } else if(only === 'mythicalSkin'){
+      nextAvatar.skin = 'mythicalSkin';
+      nextAvatar.accessory = null;
+    } else {
+      nextAvatar.accessory = only;
+      nextAvatar.skin = null;
+    }
     startRun();
   }
 }
@@ -1106,6 +1214,11 @@ function prepareNewRun(){
 // Start a run immediately.  This wraps restartRun() so that
 // prepareNewRun() can decide whether to prompt or start directly.
 function startRun(){
+  // Pick a new seasonal palette at the start of each run to allow
+  // seasonal achievements.  Reinitialize critters so flower colours
+  // update to the new theme.  Then reset the run.
+  applySeasonTheme();
+  if(typeof initCritters === 'function') initCritters();
   restartRun();
 }
 
@@ -1222,6 +1335,88 @@ function drawAccessoryOnFrog(f){
       // Knot on right side
       ctx.beginPath();
       ctx.rect(bandWidth/2 - bandHeight, yOff + bandHeight * 0.2, bandHeight * 1.2, bandHeight * 0.6);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+    case 'flowerCrown': {
+      // Draw a simple ring of flowers across the top of the frog's head.
+      const radius = size * 0.6;
+      const yOff = -size * 1.1;
+      const colors = ['#ff77aa', '#ffd24f', '#88ddff', '#ff9de1'];
+      const petals = 5;
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        const cx = Math.cos(angle) * radius * 0.6;
+        const cy = yOff + Math.sin(angle) * radius * 0.3;
+        const col = colors[i % colors.length];
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'sunglasses': {
+      // Draw sunglasses across the eyes
+      const lensW = size * 0.6;
+      const lensH = size * 0.25;
+      const yOff = -size * 0.85;
+      // left lens
+      ctx.fillStyle = '#111';
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = Math.max(1, size * 0.05);
+      ctx.beginPath();
+      ctx.rect(-lensW - size * 0.1, yOff, lensW, lensH);
+      ctx.fill();
+      ctx.stroke();
+      // right lens
+      ctx.beginPath();
+      ctx.rect(size * 0.1, yOff, lensW, lensH);
+      ctx.fill();
+      ctx.stroke();
+      // bridge
+      ctx.beginPath();
+      ctx.moveTo(-size * 0.1, yOff + lensH * 0.5);
+      ctx.lineTo(size * 0.1, yOff + lensH * 0.5);
+      ctx.stroke();
+      break;
+    }
+    case 'acornCap': {
+      // Draw a small acorn cap on top of the frog's head.
+      const capW = size * 1.2;
+      const capH = size * 0.5;
+      const yOff = -size * 1.3;
+      // cap body
+      ctx.fillStyle = '#8b5a2b';
+      ctx.strokeStyle = '#6d451f';
+      ctx.lineWidth = Math.max(1, size * 0.05);
+      ctx.beginPath();
+      ctx.ellipse(0, yOff, capW * 0.5, capH * 0.5, 0, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // stem
+      ctx.beginPath();
+      ctx.moveTo(0, yOff - capH * 0.5);
+      ctx.lineTo(0, yOff - capH);
+      ctx.stroke();
+      break;
+    }
+    case 'scarf': {
+      // Draw a scarf around the frog's neck.
+      const width = size * 1.6;
+      const height = size * 0.3;
+      const yOff = size * 0.4;
+      ctx.fillStyle = '#c0392b';
+      ctx.strokeStyle = '#8e2b20';
+      ctx.lineWidth = Math.max(1, size * 0.05);
+      ctx.beginPath();
+      ctx.rect(-width / 2, yOff, width, height);
+      ctx.fill();
+      ctx.stroke();
+      // tail hanging down
+      ctx.beginPath();
+      ctx.rect(-width * 0.4, yOff + height, height * 0.6, height * 1.2);
       ctx.fill();
       ctx.stroke();
       break;
@@ -1591,8 +1786,9 @@ function loadBridge(levelIdx, keepTimer=false){
   frog.color = nextAvatar.color;
   frog.pattern = nextAvatar.pattern;
   frog.rainbow = !!nextAvatar.rainbow;
-  // Apply any unlocked accessory to the frog for this run
+  // Apply any unlocked accessory and skin to the frog for this run
   frog.accessory = nextAvatar.accessory || null;
+  frog.skin = nextAvatar.skin || null;
   startX = W/2; startY = bridge.y0 - bridge.tileSize/2 - 18; goalY = bridge.y0 + (bridge.tileSize+bridge.spacing)*TILE_ROWS + bridge.tileSize/2 + 18;
   frog.x=startX; frog.y=startY; frog.onBridge=false;
   targetRow=0; selectedCol=START_COL;
@@ -1639,6 +1835,7 @@ function makeFrog(x,y,opts={}){
     r: 18,
     color: opts.color || "#3aa34a",
     pattern: opts.pattern || "none", // "spots" | "stripes" | "band"
+    skin: opts.skin || null,        // special skin types (e.g. mythical)
     ai: opts.ai || false,
     accessory: opts.accessory || null,
     hop: 0,
@@ -1656,7 +1853,7 @@ function enterMeadow(){
   lastRunElapsed = (performance.now()-runStartTime)/1000;
   if(!best||lastRunElapsed<best){best=lastRunElapsed; localStorage.setItem("latinFrogBest", String(best));}
   meadow = { players:[], t:0, bannerT:0, input:{left:false,right:false,up:false,down:false,dx:0,dy:0}, butterflies:[] };
-  const player = makeFrog(-40, H*0.7, { color: nextAvatar.color, pattern: nextAvatar.pattern, accessory: nextAvatar.accessory });
+  const player = makeFrog(-40, H*0.7, { color: nextAvatar.color, pattern: nextAvatar.pattern, accessory: nextAvatar.accessory, skin: nextAvatar.skin });
   player.vx = 180; meadow.players.push(player);
   const aiCount = 8; // more frogs for joy
   for(let i=0;i<aiCount;i++){
@@ -1757,7 +1954,28 @@ function drawFrogEntity(f){
   ctx.save(); ctx.translate(f.x, f.y - hopLift); ctx.scale(sx,sy);
   ctx.globalAlpha=0.25; ctx.fillStyle="#000"; ctx.beginPath(); ctx.ellipse(0,12,18,6,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
   ctx.strokeStyle="#2b7c35"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-14,8); ctx.lineTo(-20,16); ctx.moveTo(14,8); ctx.lineTo(20,16); ctx.stroke();
-  ctx.fillStyle=f.color; ctx.beginPath(); ctx.ellipse(0,0,20,14,0,0,Math.PI*2); ctx.fill();
+  // Determine body fill: mythical skin > rainbow > plain colour
+  if (f.skin === 'mythicalSkin') {
+    const rg = ctx.createRadialGradient(0, 0, 0, 0, 0, 20);
+    rg.addColorStop(0, '#7b2cbf');
+    rg.addColorStop(0.5, '#0cc0df');
+    rg.addColorStop(1, '#f5c542');
+    ctx.fillStyle = rg;
+  } else if (f.rainbow) {
+    const g = ctx.createLinearGradient(-20, 0, 20, 0);
+    g.addColorStop(0, '#ff5f6d');
+    g.addColorStop(0.2, '#ffc371');
+    g.addColorStop(0.4, '#fff176');
+    g.addColorStop(0.6, '#7cf6a3');
+    g.addColorStop(0.8, '#64b5f6');
+    g.addColorStop(1, '#ba68c8');
+    ctx.fillStyle = g;
+  } else {
+    ctx.fillStyle = f.color;
+  }
+  ctx.beginPath();
+  ctx.ellipse(0,0,20,14,0,0,Math.PI*2);
+  ctx.fill();
   ctx.globalAlpha=0.5; ctx.fillStyle="#000";
   if(f.pattern==="spots"){ for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ ctx.beginPath(); ctx.arc(i*7 + (j%2?3:0), j*5, 3, 0, Math.PI*2); ctx.fill(); } }
   else if(f.pattern==="stripes"){ for(let i=-16;i<=16;i+=6){ ctx.fillRect(i,-14,3,28); } }
@@ -1988,11 +2206,30 @@ const baseY = Math.round(frogBase * 0.73);
   frog.r = baseX;
 
   ctx.save(); ctx.translate(frog.x,frog.y); ctx.scale(sx,sy);
-  // body fill (rainbow unlock after 5 runs)
-  if (frog.rainbow) {
-    const g = ctx.createLinearGradient(-baseX, 0, baseX, 0); g.addColorStop(0,"#ff5f6d"); g.addColorStop(0.2,"#ffc371"); g.addColorStop(0.4,"#fff176"); g.addColorStop(0.6,"#7cf6a3"); g.addColorStop(0.8,"#64b5f6"); g.addColorStop(1,"#ba68c8"); ctx.fillStyle=g; }
-  else { ctx.fillStyle=frog.color; }
-  ctx.beginPath(); ctx.ellipse(0,0,baseX,baseY,0,0,Math.PI*2); ctx.fill();
+  // body fill prioritises special skins first, then rainbow, then plain colour
+  if (frog.skin === 'mythicalSkin') {
+    // Mythical skin: radiant gradient blending purples and teals.  Use
+    // a radial gradient centered on the frog to create a glow effect.
+    const rg = ctx.createRadialGradient(0, 0, 0, 0, 0, baseX);
+    rg.addColorStop(0, '#7b2cbf');  // deep purple
+    rg.addColorStop(0.5, '#0cc0df'); // vivid teal
+    rg.addColorStop(1, '#f5c542');  // golden
+    ctx.fillStyle = rg;
+  } else if (frog.rainbow) {
+    const g = ctx.createLinearGradient(-baseX, 0, baseX, 0);
+    g.addColorStop(0, "#ff5f6d");
+    g.addColorStop(0.2, "#ffc371");
+    g.addColorStop(0.4, "#fff176");
+    g.addColorStop(0.6, "#7cf6a3");
+    g.addColorStop(0.8, "#64b5f6");
+    g.addColorStop(1, "#ba68c8");
+    ctx.fillStyle = g;
+  } else {
+    ctx.fillStyle = frog.color;
+  }
+  ctx.beginPath();
+  ctx.ellipse(0, 0, baseX, baseY, 0, 0, Math.PI * 2);
+  ctx.fill();
   // simple pattern on bridge frog
   ctx.globalAlpha=0.35; ctx.fillStyle="#000";
   if(frog.pattern==="spots"){ for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ ctx.beginPath(); ctx.arc(i*8 + (j%2?4:0), j*6, 3, 0, Math.PI*2); ctx.fill(); } }
