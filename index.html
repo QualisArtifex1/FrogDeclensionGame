@@ -530,7 +530,14 @@ playAgainBtn.addEventListener("click", ()=>{
   // choose a random meadow frog (not the player) as the next avatar
   if(meadow.players.length>1){
     const pick = meadow.players[1 + Math.floor(Math.random()*(meadow.players.length-1))];
-   nextAvatar = { color: pick.color, pattern: pick.pattern, rainbow: nextAvatar.rainbow };
+    nextAvatar = {
+      color: pick.color,
+      pattern: pick.pattern,
+      rainbow: nextAvatar.rainbow,
+      // Preserve any unlocked accessory across runs so that
+      // achievements remain visible on the player frog
+      accessory: nextAvatar.accessory
+    };
   }
 // increment runs and unlock rainbow after 5 (session-only)
 playthroughs += 1;
@@ -888,6 +895,12 @@ function loadUnlocks(){
     console.error('Error loading unlocks', err);
     unlocks = {};
   }
+  // If there is a saved unlock, set the nextAvatar accessory so it
+  // immediately appears when the game is restarted.  Prioritise
+  // achievements in a consistent order (crown > bandana) so that
+  // players see the most prestigious item if multiple are unlocked.
+  if(unlocks.noMistakes){ nextAvatar.accessory = 'crown'; }
+  else if(unlocks.fastRun){ nextAvatar.accessory = 'bandana'; }
 }
 
 function saveUnlocks(){
@@ -923,6 +936,20 @@ function evaluateAchievements(){
     // Assign the last unlocked item as the next accessory
     const accessory = newlyUnlocked[newlyUnlocked.length - 1];
     nextAvatar.accessory = accessory;
+    /*
+     * If the player has just unlocked a new accessory during the meadow
+     * finale, they expect to see it right away.  At this point the new
+     * avatar (and its accessory) will only take effect on the next
+     * run via `nextAvatar`.  To make the reward visible immediately,
+     * update the current player entity's accessory when we are in
+     * the meadow phase.  This ensures the frog wears the newly
+     * unlocked crown or bandana during the celebration and in all
+     * subsequent runs.  We intentionally avoid updating AI frogs,
+     * which always retain their random appearances.
+     */
+    if (phase === PHASE_MEADOW && meadow && meadow.players && meadow.players.length > 0) {
+      meadow.players[0].accessory = accessory;
+    }
     // Show unlock banner with confetti
     triggerUnlockBanner(accessory);
   }
