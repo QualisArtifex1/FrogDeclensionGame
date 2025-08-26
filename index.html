@@ -65,6 +65,17 @@
     <span class="time">Total Time: <span id="finalTime">0.0s</span></span>
     <button id="playAgainBtn">Play Again</button>
   </div>
+  <!-- Accessory selection overlay.  This appears at the start of a new run
+       when multiple accessories are available.  Players choose which
+       unlocked item (or none) to equip for the coming run.  The overlay
+       blocks input until a selection is made.  -->
+  <div id="accOverlay" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:25; justify-content:center; align-items:center;">
+    <div style="background:rgba(255,255,255,0.98); border:3px solid #cfe9ff; border-radius:18px; padding:20px 24px; max-width:320px; width:90%; box-shadow:0 12px 32px rgba(0,0,0,.2); text-align:center;">
+      <h2 style="margin:0 0 12px 0; font-size:22px; color:#16324f;">Choose Accessory</h2>
+      <div id="accOptions" style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;"></div>
+      <button id="accConfirmBtn" style="background: linear-gradient(to bottom, #16324f, #0f2238); color:white; border:none; border-radius:12px; padding:10px 18px; font-weight:700; box-shadow:0 4px 0 rgba(0,0,0,.2); cursor:pointer;">Start</button>
+    </div>
+  </div>
   <footer>
     <div class="legend">
       <span class="tag">Left/Right choose a tile — <b>Enter</b> jumps</span>
@@ -546,8 +557,11 @@ if (playthroughs >= 5) {
 }
 
   winOverlay.style.display = "none";
+  // Prepare a new run.  Players will select an accessory if multiple
+  // options are available.  Restarting the run happens after the
+  // selection is confirmed.
   phase = PHASE_BRIDGES;
-  restartRun();
+  prepareNewRun();
 });
 function showToast(msg, ms=2500){ const el=document.getElementById("toast"); el.textContent=msg; el.style.display="block"; clearTimeout(showToast._t); showToast._t=setTimeout(()=>{el.style.display="none";}, ms); }
 
@@ -1006,6 +1020,93 @@ function drawUnlockBanner(){
   if(unlockBanner.t > unlockBanner.dur){
     unlockBanner.show = false;
   }
+}
+
+/***********************
+ * ACCESSORY SELECTION
+ *
+ * When a new run begins and multiple accessories are unlocked, the
+ * player is presented with a simple choice overlay.  The available
+ * options include all unlocked items plus "none".  Once a choice
+ * is confirmed, the run begins.  This mechanism allows for future
+ * expansion to additional unlockables without modifying the main
+ * gameplay loop.
+ ***********************/
+
+// Show the accessory selection overlay.  Build clickable option
+// buttons based on the available accessories and attach event
+// listeners for selection and confirmation.
+function showAccessorySelectOverlay(options){
+  const overlay = document.getElementById('accOverlay');
+  const optsEl = document.getElementById('accOptions');
+  const confirmBtn = document.getElementById('accConfirmBtn');
+  // Clear previous options
+  optsEl.innerHTML = '';
+  // Track selected value
+  let selected = nextAvatar.accessory || 'none';
+  // Build each option as a button.  Highlight the currently
+  // selected accessory.  Use simple text labels; icons could be
+  // added here if desired.
+  options.forEach((acc) => {
+    const btn = document.createElement('button');
+    btn.textContent = acc === 'none' ? 'None' : acc.charAt(0).toUpperCase() + acc.slice(1);
+    btn.style.padding = '6px 10px';
+    btn.style.borderRadius = '8px';
+    btn.style.border = '2px solid #cfe9ff';
+    btn.style.cursor = 'pointer';
+    btn.style.background = (selected === acc) ? '#e0f0ff' : '#f5fbff';
+    btn.style.color = '#16324f';
+    btn.style.fontWeight = '600';
+    btn.addEventListener('click', () => {
+      selected = acc;
+      // Update highlighting
+      Array.from(optsEl.children).forEach((child) => {
+        child.style.background = (child.textContent.toLowerCase() === (selected === 'none' ? 'none' : selected)) ? '#e0f0ff' : '#f5fbff';
+      });
+    });
+    optsEl.appendChild(btn);
+  });
+  // Confirm button: when clicked, hide overlay and start run
+  function confirmHandler(){
+    overlay.style.display = 'none';
+    confirmBtn.removeEventListener('click', confirmHandler);
+    // Apply selection to nextAvatar; use null for "none"
+    nextAvatar.accessory = (selected === 'none') ? null : selected;
+    // Begin run
+    startRun();
+  }
+  confirmBtn.addEventListener('click', confirmHandler);
+  // Display overlay
+  overlay.style.display = 'flex';
+}
+
+// Determine which accessories are available based on unlocked
+// achievements and show the selection overlay if appropriate.  If
+// there are no options or only one option (including "none") the
+// run begins immediately without a prompt.
+function prepareNewRun(){
+  // Build a list of unlocked accessories.  Always include 'none'.
+  const options = [];
+  if(unlocks.noMistakes){ options.push('crown'); }
+  if(unlocks.fastRun){ options.push('bandana'); }
+  // Future achievements can append here (e.g. monocle, helmet)
+  options.push('none');
+  // Remove duplicates (just in case)
+  const unique = [...new Set(options)];
+  // If more than one choice exists, prompt the player
+  if(unique.length > 1){
+    showAccessorySelectOverlay(unique);
+  } else {
+    // Single option: assign it and start immediately
+    nextAvatar.accessory = (unique[0] === 'none') ? null : unique[0];
+    startRun();
+  }
+}
+
+// Start a run immediately.  This wraps restartRun() so that
+// prepareNewRun() can decide whether to prompt or start directly.
+function startRun(){
+  restartRun();
 }
 
 // Draw an accessory on a frog entity.  Accessories are simple
@@ -1730,8 +1831,10 @@ function updateGameOver(dt) {
     gameOverFX.phase = "hold";
     gameOverFX.t = 0;
   } else if (gameOverFX.phase === "hold" && gameOverFX.t >= 0.8) {
-    // Restart full run after the hold
-    restartRun();
+    // Start a new run after the hold.  Use accessory selection so
+    // players can pick their preferred unlocked item.  Do not
+    // restart immediately; prepareNewRun() will call restartRun().
+    prepareNewRun();
     gameOverFX.phase = "fadein";
     gameOverFX.t = 0;
   } else if (gameOverFX.phase === "fadein" && gameOverFX.t >= 0.8) {
@@ -1929,7 +2032,10 @@ function runSelfTests(){
 // Load any saved cosmetic unlocks before starting the game
 loadUnlocks();
 initCritters();
-restartRun();
+// Start the first run.  Use accessory selection if unlocked items are
+// available.  Do not call restartRun() directly; prepareNewRun() will
+// handle accessory choice and then begin the run.
+prepareNewRun();
 runSelfTests();
 // Debug: display toast on load to verify script execution
 let last=performance.now();
