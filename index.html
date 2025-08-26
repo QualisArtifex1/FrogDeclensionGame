@@ -85,6 +85,7 @@
     </div>
     <div>
       <button id="restartBtn">Restart Run</button>
+      <button id="clearUnlocksBtn">Reset Unlocks</button>
     </div>
   </footer>
 </div>
@@ -107,6 +108,60 @@ const COLORS = {
   fish:"#ff7043", splash:"#9dd9ff",
   confetti1:"#ff5f6d", confetti2:"#ffc371", confetti3:"#fff176", confetti4:"#7cf6a3", confetti5:"#64b5f6", confetti6:"#ba68c8"
 };
+
+// Preserve a copy of the initial colour palette so that seasonal
+// themes or neon modes can cleanly reset all colours.  We use a
+// shallow copy because colour values are strings.  When applying a
+// seasonal theme, we first restore all colours from this base
+// palette and then override specific keys defined by the theme.
+const DEFAULT_COLORS = { ...COLORS };
+
+// 80s Neon theme palette for the secret mode.  When activated,
+// colours are replaced by these highly saturated hues.  Neon mode
+// only lasts for one run and resets afterwards.
+const NEON_THEME = {
+  // Bold, high‑contrast colours for an 80s neon look
+  sky: "#2a003d",      // dark purple sky
+  grass1: "#4b0082",   // indigo ground
+  grass2: "#8e24aa",   // violet ground
+  meadow1: "#6a1b9a",  // purple meadow
+  meadow2: "#8e24aa",  // magenta meadow
+  river1: "#00c0ff",   // electric blue river
+  river2: "#0080ff",   // deep blue river
+  bridge: "#880e4f",   // dark pink bridge
+  bridgeEdge: "#ad1457",// brighter pink edge
+  plank: "#c2185b",    // magenta planks
+  plankLine: "#ec407a",
+  tilePanel: "#4a148c", // dark purple panel
+  tileText: "#ffffff",  // white text for contrast
+  tileGlow: "#ff80ab",  // pink glow
+  pad: "#00e676",      // neon green lily pad
+  padEdge: "#00b248",
+  flower1: "#ff4081",  // neon pink flowers
+  flower2: "#00e5ff",  // neon cyan flowers
+  flower3: "#76ff03",  // neon green
+  flower4: "#ffff00",  // neon yellow
+  ui: "#ffffff",      // white UI text
+  accent: "#ffea00"    // yellow accent
+};
+
+// Flag indicating that the next run should use the neon theme.  This
+// is set via the cheat code and consumed at the start of the run.
+let neonMode = false;
+// psychedelicRunActive is true when a neon cheat triggered run is in progress.
+// It indicates that a kaleidoscope overlay should be drawn over the scene.
+let psychedelicRunActive = false;
+// Jake mode flips the bridge upside down and reverses controls.  It is
+// toggled via a secret cheat code.  Runs completed in Jake mode
+// unlock a special upside‑down frog skin.
+let jakeModeActive = false;
+// Flag capturing whether the current run was started in Jake mode.  This
+// is evaluated when the run finishes to award the Jake mode unlock.
+let currentRunJake = false;
+
+// Buffer for capturing cheat codes.  Keeps the last few typed
+// characters to detect sequences like "cornish" or "skip".
+let cheatBuffer = "";
 
 /*
  * Seasonal themes allow the game to feel different each time it loads.  Each
@@ -203,6 +258,12 @@ let starAlpha = 0;
  * initialization before any drawing occurs.
  */
 function applySeasonTheme(){
+  // Begin by resetting all colour keys back to the original base
+  // palette so that previous themes (including neon) do not
+  // linger.  Use the DEFAULT_COLORS snapshot for a clean reset.
+  for(const k in DEFAULT_COLORS){
+    COLORS[k] = DEFAULT_COLORS[k];
+  }
   const keys = Object.keys(SEASON_THEMES);
   const themeName = keys[Math.floor(Math.random()*keys.length)];
   // Store the selected season globally so achievements can detect
@@ -228,6 +289,21 @@ function applySeasonTheme(){
   for(const key in DAY_COLORS){
     if(COLORS[key]) DAY_COLORS[key] = COLORS[key];
   }
+}
+
+// Apply the neon theme palette to all base colours.  Used when
+// neonMode has been activated by a cheat code.  Updates the
+// global colours and day colours to match the new values and
+// records the current season as "neon".
+function applyNeonTheme(){
+  for(const key in NEON_THEME){
+    COLORS[key] = NEON_THEME[key];
+  }
+  // Update day colours for day/night transitions
+  for(const key in DAY_COLORS){
+    if(COLORS[key]) DAY_COLORS[key] = COLORS[key];
+  }
+  window.currentSeason = 'neon';
 }
 
 // Helper: adjust a hex colour by a percentage.  Positive values lighten,
@@ -379,9 +455,31 @@ const ACHIEVEMENTS = {
     name: "Mythical Skin",
     description: "Unlock all other items to obtain a glowing skin.",
     unlock: "mythicalSkin"
+  },
+  persistentScholar: {
+    name: "Persistent Scholar",
+    description: "Complete three runs with no mistakes in a row.",
+    unlock: "laurelWreath"
+  },
+  enduranceFrog: {
+    name: "Endurance Frog",
+    description: "Complete ten runs in total across sessions.",
+    unlock: "backpack"
+  },
+  jakeMode: {
+    name: "Jake Mode",
+    description: "???",
+    unlock: "upsideDown"
   }
 };
 let unlocks = {};
+
+// Player statistics for unlock tracking.  Persisted via localStorage
+// under the key "latinFrogStats".  "streak" counts consecutive
+// mistake‑free runs; "totalRuns" counts completed runs across
+// sessions.  These support achievements like Persistent Scholar
+// and Endurance Frog.
+let stats = { streak: 0, totalRuns: 0 };
 
 // Weather system variables.  Weather events like rain or snow spawn
 // decorative particles to enhance immersion.  A weather event runs for
@@ -570,6 +668,26 @@ const uiLives = document.getElementById("lives");
 const uiTime  = document.getElementById("time");
 const uiBest  = document.getElementById("best");
 document.getElementById("restartBtn").addEventListener("click", () => { phase=PHASE_BRIDGES; restartRun(); });
+// Clear all unlockables and stats when the reset button is clicked.  This
+// removes data from localStorage and resets in‑memory structures.  A
+// toast message confirms the action and a new run begins.
+document.getElementById('clearUnlocksBtn').addEventListener('click', () => {
+  try{
+    unlocks = {};
+    stats = { streak: 0, totalRuns: 0 };
+    localStorage.removeItem('latinFrogUnlocks');
+    localStorage.removeItem('latinFrogStats');
+    // Reset avatar cosmetics
+    nextAvatar.accessory = null;
+    nextAvatar.skin = null;
+    saveUnlocks();
+    saveStats();
+    showToast('Unlockables reset');
+    // Start a fresh run
+    phase = PHASE_BRIDGES;
+    prepareNewRun();
+  } catch(err){ console.error('Error resetting unlocks', err); }
+});
 const winOverlay = document.getElementById("winOverlay");
 const finalTimeEl = document.getElementById("finalTime");
 const playAgainBtn = document.getElementById("playAgainBtn");
@@ -641,9 +759,78 @@ function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 window.addEventListener("keydown", (e)=>{
   if(phase!==PHASE_BRIDGES) return;
   const k=e.key;
-  if(["ArrowLeft","a","A"].includes(k)){ selectedCol = clamp(selectedCol-1, 0, TILE_COLS-1); e.preventDefault(); }
-  if(["ArrowRight","d","D"].includes(k)){ selectedCol = clamp(selectedCol+1, 0, TILE_COLS-1); e.preventDefault(); }
+  if(["ArrowLeft","a","A"].includes(k)){
+    if(jakeModeActive){
+      // Reverse controls: left arrow moves right in Jake mode
+      selectedCol = clamp(selectedCol + 1, 0, TILE_COLS-1);
+    } else {
+      selectedCol = clamp(selectedCol - 1, 0, TILE_COLS-1);
+    }
+    e.preventDefault();
+  }
+  if(["ArrowRight","d","D"].includes(k)){
+    if(jakeModeActive){
+      // Reverse controls: right arrow moves left in Jake mode
+      selectedCol = clamp(selectedCol - 1, 0, TILE_COLS-1);
+    } else {
+      selectedCol = clamp(selectedCol + 1, 0, TILE_COLS-1);
+    }
+    e.preventDefault();
+  }
   if(k==="Enter" || k===" "){ e.preventDefault(); confirmSelection(); }
+});
+
+// Global cheat code listener.  Captures typed letters and checks
+// for secret codes.  "cornish" toggles neon mode for the next run;
+// "skip" advances to the next bridge level when on a bridge.  The
+// buffer resets after a code is detected.
+window.addEventListener('keydown', (e) => {
+  // Ignore modifier keys or non‑character input
+  if(e.key && e.key.length === 1 && /[a-zA-Z]/.test(e.key)){
+    cheatBuffer += e.key.toLowerCase();
+    if(cheatBuffer.length > 10){ cheatBuffer = cheatBuffer.slice(-10); }
+    if(cheatBuffer.endsWith('cornish')){
+      // Toggle psychedelic mode.  If it is already active, revert to a
+      // normal seasonal palette; otherwise, activate the neon palette and
+      // overlay.  Reset neonMode so that the effect never carries
+      // implicitly into future runs.  Reinitialise critters when
+      // switching palettes so colours update.
+      if(psychedelicRunActive){
+        psychedelicRunActive = false;
+        applySeasonTheme();
+        // Refresh critters so lily pads and flowers use new colours
+        if(typeof initCritters === 'function') initCritters();
+        showToast('Psychedelic mode deactivated');
+      } else {
+        applyNeonTheme();
+        psychedelicRunActive = true;
+        neonMode = false;
+        // Reinitialise critters to reflect neon palette
+        if(typeof initCritters === 'function') initCritters();
+        showToast('Psychedelic mode activated!');
+      }
+      cheatBuffer = '';
+    } else if(cheatBuffer.endsWith('skip')){
+      if(phase === PHASE_BRIDGES){ skipLevel(); }
+      cheatBuffer = '';
+    } else if(cheatBuffer.endsWith('jake')){
+      // Toggle Jake mode.  This flips the bridge orientation and
+      // reverses the left/right controls.  Restart the current run
+      // immediately to apply the new orientation.  Completing a run
+      // in Jake mode will unlock the upside‑down skin.  A second
+      // invocation of the code deactivates the mode.
+      jakeModeActive = !jakeModeActive;
+      if(jakeModeActive){
+        showToast('Jake mode activated!');
+      } else {
+        showToast('Jake mode deactivated');
+      }
+      // Immediately restart the run so the new orientation takes effect.
+      phase = PHASE_BRIDGES;
+      restartRun();
+      cheatBuffer = '';
+    }
+  }
 });
 
 // click confirm on row
@@ -957,12 +1144,16 @@ function loadUnlocks(){
   if(unlocks.mythicalSkin){
     nextAvatar.skin = 'mythicalSkin';
   }
+  // Determine a default accessory based on priority.  Order:
+  // crown > bandana > seasonal items > laurel > backpack
   if(unlocks.noMistakes){ nextAvatar.accessory = 'crown'; }
   else if(unlocks.fastRun){ nextAvatar.accessory = 'bandana'; }
   else if(unlocks.seasonSpring){ nextAvatar.accessory = 'flowerCrown'; }
   else if(unlocks.seasonSummer){ nextAvatar.accessory = 'sunglasses'; }
   else if(unlocks.seasonAutumn){ nextAvatar.accessory = 'acornCap'; }
   else if(unlocks.seasonWinter){ nextAvatar.accessory = 'scarf'; }
+  else if(unlocks.persistentScholar){ nextAvatar.accessory = 'laurelWreath'; }
+  else if(unlocks.enduranceFrog){ nextAvatar.accessory = 'backpack'; }
 }
 
 function saveUnlocks(){
@@ -970,6 +1161,31 @@ function saveUnlocks(){
     localStorage.setItem('latinFrogUnlocks', JSON.stringify(unlocks));
   } catch(err){
     console.error('Error saving unlocks', err);
+  }
+}
+
+// Load player statistics from localStorage.  If no stats are found,
+// initialise the counters.  Catch JSON parsing errors to avoid
+// crashing on corrupt data.
+function loadStats(){
+  try{
+    const raw = localStorage.getItem('latinFrogStats');
+    stats = raw ? JSON.parse(raw) : { streak: 0, totalRuns: 0 };
+    // Ensure properties exist
+    if(typeof stats.streak !== 'number') stats.streak = 0;
+    if(typeof stats.totalRuns !== 'number') stats.totalRuns = 0;
+  } catch(err){
+    console.error('Error loading stats', err);
+    stats = { streak: 0, totalRuns: 0 };
+  }
+}
+
+// Save player statistics to localStorage.
+function saveStats(){
+  try{
+    localStorage.setItem('latinFrogStats', JSON.stringify(stats));
+  } catch(err){
+    console.error('Error saving stats', err);
   }
 }
 
@@ -997,6 +1213,10 @@ function evaluateAchievements(){
       } else if(key === 'mythicalSkin'){
         // Mythical skin unlocks only if all other achievements are complete
         achieved = Object.keys(ACHIEVEMENTS).every(k => k === 'mythicalSkin' || unlocks[k]);
+      } else if(key === 'persistentScholar'){
+        achieved = (stats.streak >= 3);
+      } else if(key === 'enduranceFrog'){
+        achieved = (stats.totalRuns >= 10);
       }
       if(achieved){
         unlocks[key] = true;
@@ -1004,21 +1224,41 @@ function evaluateAchievements(){
       }
     }
   }
+  // Jake mode unlock: if the current run was played in Jake mode and
+  // the unlock has not yet been earned, grant the upside‑down skin.
+  if(!unlocks.jakeMode && currentRunJake){
+    unlocks.jakeMode = true;
+    newlyUnlocked.push('upsideDown');
+  }
   if(newlyUnlocked.length > 0){
     saveUnlocks();
-    // Assign the last unlocked item as the default accessory for the
-    // next run.  This will be overwritten by the player's selection.
-    const accessory = newlyUnlocked[newlyUnlocked.length - 1];
-    nextAvatar.accessory = accessory;
+    // Assign the last unlocked item as the default cosmetic for the
+    // next run.  Skins such as mythicalSkin or upsideDown are
+    // distinguished from accessories.  This will be overwritten by
+    // the player's selection via the accessory chooser.
+    const last = newlyUnlocked[newlyUnlocked.length - 1];
+    if(last === 'mythicalSkin' || last === 'upsideDown'){
+      nextAvatar.skin = last;
+      nextAvatar.accessory = null;
+    } else {
+      nextAvatar.accessory = last;
+      nextAvatar.skin = null;
+    }
     /*
      * Show each unlocked item with its own banner.  Queue banners
      * sequentially so players see individual celebrations rather than
      * only the last item.  Update the current player frog's
-     * accessory to reflect the last unlocked item for the remainder
+     * cosmetic to reflect the last unlocked item for the remainder
      * of the meadow phase.
      */
     if (phase === PHASE_MEADOW && meadow && meadow.players && meadow.players.length > 0) {
-      meadow.players[0].accessory = accessory;
+      if(last === 'mythicalSkin' || last === 'upsideDown'){
+        meadow.players[0].skin = last;
+        meadow.players[0].accessory = null;
+      } else {
+        meadow.players[0].accessory = last;
+        meadow.players[0].skin = null;
+      }
     }
     for(const acc of newlyUnlocked){
       queueUnlockBanner(acc);
@@ -1158,8 +1398,9 @@ function showAccessorySelectOverlay(options){
     if(selected === 'none'){
       nextAvatar.accessory = null;
       nextAvatar.skin = null;
-    } else if(selected === 'mythicalSkin'){
-      nextAvatar.skin = 'mythicalSkin';
+    } else if(selected === 'mythicalSkin' || selected === 'upsideDown'){
+      // Treat these unlocks as skins
+      nextAvatar.skin = selected;
       nextAvatar.accessory = null;
     } else {
       nextAvatar.accessory = selected;
@@ -1212,6 +1453,9 @@ function prepareNewRun(){
   if(unlocks.seasonAutumn){ options.push('acornCap'); }
   if(unlocks.seasonWinter){ options.push('scarf'); }
   if(unlocks.mythicalSkin){ options.push('mythicalSkin'); }
+  if(unlocks.persistentScholar){ options.push('laurelWreath'); }
+  if(unlocks.enduranceFrog){ options.push('backpack'); }
+  if(unlocks.jakeMode){ options.push('upsideDown'); }
   // Always include 'none'
   options.push('none');
   const unique = [...new Set(options)];
@@ -1238,10 +1482,22 @@ function prepareNewRun(){
 // Start a run immediately.  This wraps restartRun() so that
 // prepareNewRun() can decide whether to prompt or start directly.
 function startRun(){
-  // Pick a new seasonal palette at the start of each run to allow
-  // seasonal achievements.  Reinitialize critters so flower colours
-  // update to the new theme.  Then reset the run.
-  applySeasonTheme();
+  // Apply neon theme if activated; otherwise pick a seasonal palette.
+  // When a neon cheat is detected for the upcoming run, neonMode is true.
+  // We apply the neon palette and mark the run as psychedelic.  The flag
+  // is then consumed so that subsequent runs revert to normal palettes.
+  if(neonMode){
+    applyNeonTheme();
+    neonMode = false;
+    psychedelicRunActive = true;
+  } else {
+    applySeasonTheme();
+    psychedelicRunActive = false;
+  }
+  // Record whether this run is a Jake mode run for achievement
+  currentRunJake = jakeModeActive;
+  // Reinitialize critters so flower and pad colours update to the new
+  // theme.  Then reset the run.
   if(typeof initCritters === 'function') initCritters();
   restartRun();
 }
@@ -1443,6 +1699,50 @@ function drawAccessoryOnFrog(f){
       ctx.rect(-width * 0.4, yOff + height, height * 0.6, height * 1.2);
       ctx.fill();
       ctx.stroke();
+      break;
+    }
+    case 'laurelWreath': {
+      // Draw a laurel wreath of green leaves around the top of the head.
+      const radius = size * 0.7;
+      const yOff = -size * 1.1;
+      const leaves = 8;
+      for(let i=0;i<leaves;i++){
+        const angle = (i / leaves) * Math.PI * 2;
+        const lx = Math.cos(angle) * radius * 0.6;
+        const ly = yOff + Math.sin(angle) * radius * 0.35;
+        ctx.fillStyle = '#5cb85c';
+        ctx.beginPath();
+        ctx.ellipse(lx, ly, size * 0.18, size * 0.08, angle, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'backpack': {
+      // Draw a backpack on the frog's back.  Since we can't render
+      // behind the body, place it slightly above the back and draw
+      // straps across the body.
+      const packW = size * 0.8;
+      const packH = size * 0.9;
+      const yOff = size * 0.2;
+      ctx.fillStyle = '#795548';
+      ctx.strokeStyle = '#5d4037';
+      ctx.lineWidth = Math.max(1, size * 0.05);
+      // Pack body
+      ctx.beginPath();
+      ctx.rect(-packW/2, yOff, packW, packH);
+      ctx.fill();
+      ctx.stroke();
+      // Flap
+      ctx.beginPath();
+      ctx.rect(-packW/2, yOff, packW, packH * 0.25);
+      ctx.fillStyle = '#6d4c41';
+      ctx.fill();
+      ctx.stroke();
+      // Straps across front
+      ctx.fillStyle = '#5d4037';
+      ctx.beginPath();
+      ctx.rect(-size * 0.1, yOff - size * 0.4, size * 0.2, size * 0.8);
+      ctx.fill();
       break;
     }
   }
@@ -1772,10 +2072,21 @@ function confirmSelection(){
     frog.onBridge=true;
     if(tile.correct){
       tile.glow=1; addGlowBurst(x,y); chime();
-      if(r === TILE_ROWS-1){
-        finishBridge(true);
+      if(jakeModeActive){
+        // In Jake mode we move upwards through rows.  Finishing when
+        // we reach row 0.
+        if(r === 0){
+          finishBridge(true);
+        } else {
+          targetRow = r - 1;
+        }
       } else {
-        targetRow = r+1;
+        // Normal progression downwards through rows
+        if(r === TILE_ROWS - 1){
+          finishBridge(true);
+        } else {
+          targetRow = r + 1;
+        }
       }
     } else {
       tile.crack=1; plop(); wrongStep(x,y);
@@ -1799,7 +2110,23 @@ function wrongStep(x,y){
     }
   }, 260);
 }
-function resetToBridgeStart(){ frog.onBridge=false; frog.x=startX; frog.y=startY; targetRow=0; selectedCol=START_COL; }
+function resetToBridgeStart(){
+  frog.onBridge = false;
+  frog.x = startX;
+  frog.y = startY;
+  // Reset to the appropriate starting row depending on Jake mode
+  targetRow = jakeModeActive ? (TILE_ROWS - 1) : 0;
+  selectedCol = START_COL;
+}
+
+// Skip to the next bridge level instantly.  Invoked via the cheat code
+// "skip".  Only works when on a bridge.  It marks the current bridge
+// as completed successfully.
+function skipLevel(){
+  if(phase === PHASE_BRIDGES){
+    finishBridge(true);
+  }
+}
 
 /***********************
  * BRIDGE FLOW
@@ -1813,9 +2140,22 @@ function loadBridge(levelIdx, keepTimer=false){
   // Apply any unlocked accessory and skin to the frog for this run
   frog.accessory = nextAvatar.accessory || null;
   frog.skin = nextAvatar.skin || null;
-  startX = W/2; startY = bridge.y0 - bridge.tileSize/2 - 18; goalY = bridge.y0 + (bridge.tileSize+bridge.spacing)*TILE_ROWS + bridge.tileSize/2 + 18;
-  frog.x=startX; frog.y=startY; frog.onBridge=false;
-  targetRow=0; selectedCol=START_COL;
+  startX = W/2;
+  if(jakeModeActive){
+    // In Jake mode start at the bottom of the bridge and move towards the top.
+    startY = bridge.y0 + (bridge.tileSize + bridge.spacing) * (TILE_ROWS - 1) + bridge.tileSize/2 + 18;
+    goalY = bridge.y0 - bridge.tileSize/2 - 18;
+    targetRow = TILE_ROWS - 1;
+  } else {
+    // Normal run: start above the first row and move downward.
+    startY = bridge.y0 - bridge.tileSize/2 - 18;
+    goalY = bridge.y0 + (bridge.tileSize + bridge.spacing) * TILE_ROWS + bridge.tileSize/2 + 18;
+    targetRow = 0;
+  }
+  frog.x = startX;
+  frog.y = startY;
+  frog.onBridge = false;
+  selectedCol = START_COL;
   uiLevel.textContent = (levelIdx+1); uiLives.textContent=frog.lives;
   if(!keepTimer) runStartTime = performance.now();
   // Rainbow unlock banner (first time only when starting a run with rainbow avatar)
@@ -1875,6 +2215,19 @@ const FROG_PATTERNS = ["none","spots","stripes","band"];
 function enterMeadow(){
   phase = PHASE_MEADOW;
   lastRunElapsed = (performance.now()-runStartTime)/1000;
+  // Update persistent scholar and endurance stats.  A mistake‑free run
+  // increments the streak; otherwise the streak resets.  Every completed
+  // run increments the total run counter.  Persist stats to
+  // localStorage so achievements can be earned across sessions.
+  try{
+    if(mistakes === 0){
+      stats.streak = (stats.streak || 0) + 1;
+    } else {
+      stats.streak = 0;
+    }
+    stats.totalRuns = (stats.totalRuns || 0) + 1;
+    saveStats();
+  } catch(e){ console.error('Error updating stats', e); }
   if(!best||lastRunElapsed<best){best=lastRunElapsed; localStorage.setItem("latinFrogBest", String(best));}
   meadow = { players:[], t:0, bannerT:0, input:{left:false,right:false,up:false,down:false,dx:0,dy:0}, butterflies:[] };
   const player = makeFrog(-40, H*0.7, { color: nextAvatar.color, pattern: nextAvatar.pattern, accessory: nextAvatar.accessory, skin: nextAvatar.skin });
@@ -1974,7 +2327,12 @@ function drawFrogEntity(f){
   const hopPhase = (f.hopDur>0) ? (1 - Math.max(0,f.hopLeft)/f.hopDur) : 0; // 0..1
   const hopLift = Math.sin(hopPhase*Math.PI) * (f.hopH||0);
   const hop = (Math.sin(f.hop*6)+1)*0.5; // idle bounce
-  const sx = 1 + hop*0.18, sy = 1 - hop*0.18;
+  let sx = 1 + hop*0.18;
+  let sy = 1 - hop*0.18;
+  // Flip vertically for upsideDown skin
+  if(f.skin === 'upsideDown'){
+    sy = -sy;
+  }
   ctx.save(); ctx.translate(f.x, f.y - hopLift); ctx.scale(sx,sy);
   ctx.globalAlpha=0.25; ctx.fillStyle="#000"; ctx.beginPath(); ctx.ellipse(0,12,18,6,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
   ctx.strokeStyle="#2b7c35"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-14,8); ctx.lineTo(-20,16); ctx.moveTo(14,8); ctx.lineTo(20,16); ctx.stroke();
@@ -2131,6 +2489,50 @@ function addGlowBurst(x,y,color=COLORS.tileGlow){ for(let i=0;i<10;i++){ const a
 function addRing(x,y,r0){ particles.push({ring:true,x,y,r:r0,life:0.6,t:0}); }
 function drawParticles(dt){ for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.t+=dt; if(p.ring){ const a=Math.max(0,1-p.t/p.life); ctx.save(); ctx.globalAlpha=a; ctx.strokeStyle=COLORS.splash; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(p.x,p.y,p.r+p.t*30,0,Math.PI*2); ctx.stroke(); ctx.restore(); if(p.t>=p.life) particles.splice(i,1); continue; } p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; const a=Math.max(0,1-p.t/p.life); ctx.globalAlpha=a; ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,2.4,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; if(p.t>=p.life) particles.splice(i,1);} }
 
+/*
+ * drawPsychedelicOverlay(time)
+ *
+ * When the neon cheat has been activated, this function paints a
+ * kaleidoscopic rainbow overlay over the entire scene.  It draws a
+ * series of pie‑shaped wedges radiating from the centre of the
+ * canvas, with hues rotating slowly over time.  The overlay is
+ * partially transparent so that the underlying game remains visible.
+ */
+function drawPsychedelicOverlay(time){
+  // Only draw if a psychedelic run is active.  The calling code
+  // should check psychedelicRunActive, but guard here as well.
+  if(!psychedelicRunActive) return;
+  ctx.save();
+  // Use additive blending so colours accumulate.  This yields a
+  // brighter, trippier effect when wedges overlap.
+  ctx.globalCompositeOperation = 'lighter';
+  // Overall opacity for the overlay.  Higher values obscure more of
+  // the underlying scene; adjust to taste.
+  ctx.globalAlpha = 0.25;
+  const cx = W * 0.5;
+  const cy = H * 0.5;
+  // Radius large enough to cover entire canvas.
+  const radius = Math.sqrt(W*W + H*H);
+  const segments = 20; // number of colour wedges
+  // The hue offset slowly rotates over time.  Increase multiplier
+  // for faster colour cycling.
+  const hueOffset = (time * 0.02) % 360;
+  for(let i=0; i<segments; i++){
+    const startAngle = (i / segments) * Math.PI * 2 + time * 0.0007;
+    const endAngle = startAngle + (Math.PI * 2 / segments);
+    const hue = (hueOffset + i * (360 / segments)) % 360;
+    ctx.fillStyle = `hsla(${hue}, 80%, 60%, 1)`;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Restore default compositing.
+  ctx.restore();
+  ctx.globalCompositeOperation = 'source-over';
+}
+
 /***********************
  * DRAW — BRIDGES SCENE
  ***********************/
@@ -2217,7 +2619,12 @@ function fitText(text, x, y, maxW){
 
 function drawFrog(){
   const hop = frog.jumping ? Math.sin(Math.min(1,frog.jT)*Math.PI) : 0;
-const sx = 1 + hop*0.12, sy = 1 - hop*0.22;
+  let sx = 1 + hop*0.12;
+  let sy = 1 - hop*0.22;
+  // Flip the frog vertically for the upsideDown skin
+  if(frog.skin === 'upsideDown'){
+    sy = -sy;
+  }
 
 // Size ties to tile size; smaller on phones
 const tile = bridge ? bridge.tileSize : 22;
@@ -2292,6 +2699,7 @@ function runSelfTests(){
  ***********************/
 // Load any saved cosmetic unlocks before starting the game
 loadUnlocks();
+loadStats();
 initCritters();
 // Start the first run.  Use accessory selection if unlocked items are
 // available.  Do not call restartRun() directly; prepareNewRun() will
@@ -2369,6 +2777,13 @@ function loop(now){
     drawMeadowOverlay();
     // Achievement unlock banner
     drawUnlockBanner();
+  }
+
+  // Kaleidoscope overlay for neon cheat.  Draw this after all scene
+  // elements but before the game over overlay so that it remains
+  // visible even when weather or banners are present.
+  if(psychedelicRunActive){
+    drawPsychedelicOverlay(now);
   }
 
   // Game Over overlay pass (on top)
