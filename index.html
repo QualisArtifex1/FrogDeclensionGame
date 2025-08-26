@@ -1006,25 +1006,23 @@ function evaluateAchievements(){
   }
   if(newlyUnlocked.length > 0){
     saveUnlocks();
-    // Assign the last unlocked item as the next accessory
+    // Assign the last unlocked item as the default accessory for the
+    // next run.  This will be overwritten by the player's selection.
     const accessory = newlyUnlocked[newlyUnlocked.length - 1];
     nextAvatar.accessory = accessory;
     /*
-     * If the player has just unlocked a new accessory during the meadow
-     * finale, they expect to see it right away.  At this point the new
-     * avatar (and its accessory) will only take effect on the next
-     * run via `nextAvatar`.  To make the reward visible immediately,
-     * update the current player entity's accessory when we are in
-     * the meadow phase.  This ensures the frog wears the newly
-     * unlocked crown or bandana during the celebration and in all
-     * subsequent runs.  We intentionally avoid updating AI frogs,
-     * which always retain their random appearances.
+     * Show each unlocked item with its own banner.  Queue banners
+     * sequentially so players see individual celebrations rather than
+     * only the last item.  Update the current player frog's
+     * accessory to reflect the last unlocked item for the remainder
+     * of the meadow phase.
      */
     if (phase === PHASE_MEADOW && meadow && meadow.players && meadow.players.length > 0) {
       meadow.players[0].accessory = accessory;
     }
-    // Show unlock banner with confetti
-    triggerUnlockBanner(accessory);
+    for(const acc of newlyUnlocked){
+      queueUnlockBanner(acc);
+    }
   }
 }
 
@@ -1032,14 +1030,35 @@ function evaluateAchievements(){
 // effect is similar to the rainbow unlock banner but uses a customised
 // message and confetti colours.  After the banner finishes, it hides
 // automatically.
-function triggerUnlockBanner(accessory){
-  // Reset confetti and configure colours based on accessory
+// Queue a banner to celebrate a newly unlocked item.  The banner
+// displays sequentially with others.  Confetti and sounds are
+// configured when the banner begins.
+function queueUnlockBanner(accessory){
+  pendingUnlocks.push(accessory);
+  // If no banner is currently showing, immediately start the next one.
+  if(!unlockBanner.show){
+    startNextUnlockBanner();
+  }
+}
+
+// Begin the next unlock banner from the queue.  This sets up
+// confetti and resets timing.  Called automatically when a banner
+// finishes or when a new banner is queued while none is showing.
+function startNextUnlockBanner(){
+  if(pendingUnlocks.length === 0){
+    return;
+  }
+  const accessory = pendingUnlocks.shift();
+  // Reset confetti and configure colours
   confetti.length = 0;
-  for(let i=0;i<180;i++){
+  for(let i=0; i<180; i++){
     const colourPool = [COLORS.confetti1, COLORS.confetti2, COLORS.confetti3, COLORS.confetti4, COLORS.confetti5, COLORS.confetti6];
     const c = colourPool[i % colourPool.length];
-    confetti.push({x: Math.random()*W, y: -30 - Math.random()*40, vx: (Math.random()*2-1)*80, vy: 120 + Math.random()*160, rot: Math.random()*6.28, vr: (Math.random()*2-1)*3, color: c, life: 3 + Math.random()*2, t: 0, sz: 2 + Math.random()*3});
+    confetti.push({ x: Math.random()*W, y: -30 - Math.random()*40, vx: (Math.random()*2-1)*80, vy: 120 + Math.random()*160, rot: Math.random()*6.28, vr: (Math.random()*2-1)*3, color: c, life: 3 + Math.random()*2, t: 0, sz: 2 + Math.random()*3 });
   }
+  // Play a short triumphant tone (reuse beep/chime functions if desired)
+  // beep(880,0.2,"sine",0.08); setTimeout(() => beep(1174,0.18,"sine",0.07), 140);
+  // setTimeout(() => beep(1568,0.16,"sine",0.06), 280);
   unlockBanner.show = true;
   unlockBanner.t = 0;
   unlockBanner.dur = 4.0;
@@ -1078,6 +1097,8 @@ function drawUnlockBanner(){
   drawConfetti();
   if(unlockBanner.t > unlockBanner.dur){
     unlockBanner.show = false;
+    // Start the next queued banner, if any
+    startNextUnlockBanner();
   }
 }
 
