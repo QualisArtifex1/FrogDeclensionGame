@@ -883,19 +883,11 @@ window.addEventListener('keydown', (e) => {
       hardModeActive = !hardModeActive;
       if(hardModeActive){
         // Generate a random permutation of the ten case indices (0..9).
-        // Generate two independent permutations: singular (rows 0..4) and plural (rows 5..9)
-function shuffle(arr){
-  for(let i = arr.length - 1; i > 0; i--){
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-const singular = shuffle([0,1,2,3,4]);   // Nom, Gen, Dat, Acc, Abl (singular), scrambled
-const plural   = shuffle([5,6,7,8,9]);   // Nom, Gen, Dat, Acc, Abl (plural), scrambled
-caseOrder = singular.concat(plural);
-
+        caseOrder = DEFAULT_CASE_ORDER.slice();
+        for(let i = caseOrder.length - 1; i > 0; i--){
+          const j = Math.floor(Math.random() * (i + 1));
+          [caseOrder[i], caseOrder[j]] = [caseOrder[j], caseOrder[i]];
+        }
         showToast('Hard mode activated!');
       } else {
         // Restore the default order
@@ -2960,6 +2952,326 @@ requestAnimationFrame(loop);
 addEventListener("pointerdown", ()=>{ if(ac.state==="suspended") ac.resume(); }, {once:true});
 document.addEventListener("visibilitychange", ()=>{ if(document.hidden && ac.state==="running"){ ac.suspend(); } else if(!document.hidden && ac.state==="suspended"){ ac.resume(); }});
 window.addEventListener("error", (e)=>{   console.error("Window error:", e.error || e.message || e);   showToast("Error: " + (e.message || "Unknown")); }); window.addEventListener("unhandledrejection", (e)=>{   console.error("Unhandled promise rejection:", e.reason);   const msg = e.reason && (e.reason.message || String(e.reason));   showToast("Error: " + (msg || "Promise rejection")); });
+
+</script>
+
+<script>
+
+/* === Easter Egg Registry (inline v11) ===
+   Built-ins: "hard", "vesuvius"(toggle), "orator"(toggle)
+   - Vesuvius: ash + embers + jagged falling rocks; **lava veil** tints only the river band red
+   - Orator: follows player (auto-detect frog coords); keeps speaking until toggled off
+*/
+(function () {
+  const DOC = document;
+  const WIN = window;
+  if (WIN.EasterEggs && WIN.EasterEggs._version === 11) return;
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  function toast(msg){ if(typeof WIN.showToast==="function") WIN.showToast(msg); else console.log("[Toast]", msg); }
+
+  const REGISTRY = new Map();
+  let enabled = true;
+  function register(code, handler){ code=String(code||"").toLowerCase().trim(); if(!code||typeof handler!=="function") return; REGISTRY.set(code, handler); }
+  function unregister(code){ REGISTRY.delete(String(code||"").toLowerCase().trim()); }
+  function setEnabled(v){ enabled=!!v; }
+
+  let buffer="";
+  DOC.addEventListener("keydown",(e)=>{
+    if(!enabled) return;
+    const tag=(e.target&&e.target.tagName)||"";
+    if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"||e.isComposing) return;
+    if(e.key && e.key.length===1){
+      buffer+=e.key.toLowerCase();
+      if(buffer.length>48) buffer=buffer.slice(-48);
+      for(const [code,handler] of REGISTRY.entries()){
+        if(buffer.endsWith(code)){
+          try{ handler(); }catch(err){ console.error("EasterEgg error",code,err); }
+          buffer=""; break;
+        }
+      }
+    } else if (e.key==="Escape"){ buffer=""; }
+  });
+
+  const STYLE_CSS = `
+  .ash{position:fixed;top:-24px;width:8px;height:8px;background:#666;border-radius:50%;opacity:.9;pointer-events:none;animation:egg_fall linear forwards}
+  .ember{position:fixed;top:-28px;width:10px;height:10px;background: radial-gradient(circle at 30% 30%, #ffd08a, #ff5a36 60%, #aa1f09 100%);
+         border-radius:50%; box-shadow: 0 0 10px rgba(255,90,54,.8), 0 0 18px rgba(255,160,80,.6);
+         opacity:.95; pointer-events:none; animation:ember_fall linear forwards, ember_flicker 0.6s infinite}
+  /* Jagged rock: angular polygon, stone texture, spin+fall */
+  .rock{position:fixed;top:-80px;
+        width:var(--rock-size,56px);height:var(--rock-size,56px);
+        pointer-events:none; opacity:.98;
+        background:
+          /* grain */
+          repeating-linear-gradient(135deg, rgba(255,255,255,.05) 0 2px, rgba(0,0,0,.07) 2px 4px),
+          /* facets */
+          linear-gradient(150deg, #888 0%, #6c6c6c 55%, #4a4a4a 100%);
+        background-blend-mode: overlay;
+        filter: drop-shadow(0 10px 14px rgba(0,0,0,.45));
+        animation: rock_fall var(--rock-dur,3s) linear forwards;
+        transform: translateY(-80px) rotate(var(--rot,0deg));
+        clip-path: var(--clip, polygon(10% 8%, 55% 0%, 92% 20%, 84% 58%, 60% 96%, 22% 88%, 4% 52%));
+       }
+  .rock::after{
+        content:"";
+        position:absolute; inset:0;
+        background:
+          radial-gradient(120% 80% at 20% 15%, rgba(255,255,255,.15), transparent 40%),
+          radial-gradient(100% 100% at 80% 80%, rgba(0,0,0,.25), transparent 50%);
+        mix-blend-mode: soft-light;
+        clip-path: inherit;
+      }
+  @keyframes egg_fall{from{transform:translateY(-24px);opacity:.95}to{transform:translateY(115vh);opacity:0}}
+  @keyframes ember_fall{0%{transform: translate(0,-28px) rotate(0deg);}100%{transform: translate(var(--drift, 30px), 115vh) rotate(360deg);}}
+  @keyframes ember_flicker{0%,100% { filter: brightness(1);} 50%{ filter: brightness(1.4);} }
+  @keyframes rock_fall{
+    to { transform: translateY(110vh) rotate(calc(var(--rot,0deg) + 540deg)); }
+  }
+  /* Orator */
+  #ciceroNPC{
+    position:fixed;
+    display:none;
+    z-index: 2147483000;
+    pointer-events: none;
+    text-align: center;
+    font-family: Cinzel, serif;
+  }
+  #ciceroNPC .frog{ font-size: 28px; }
+  #ciceroNPC .bubble{
+    position: absolute;
+    left: 40px; bottom: 30px;
+    transform-origin: left bottom;
+    background:#fff; border:2px solid #000; padding:8px 12px; border-radius:10px;
+    font-size: 16px; box-shadow:0 2px 8px rgba(0,0,0,.25);
+    opacity:0; transform: scale(.9);
+    transition: opacity .2s ease, transform .2s ease;
+    white-space: nowrap;
+  }
+  #ciceroNPC.show .bubble{ opacity:1; transform: scale(1); }
+  /* Lava veil overlays the river band only */
+  #lavaVeil{
+    position:fixed;
+    pointer-events:none;
+    z-index: 2147482000;
+    opacity: .65;
+    mix-blend-mode: color;
+    background: linear-gradient(0deg, #a51600 0%, #c51a00 50%, #8a1200 100%);
+    border-radius: 6px;
+    transition: opacity .25s ease;
+  }`;
+  function ensureStyle(){ if(DOC.getElementById("egg-style")) return; const el=DOC.createElement("style"); el.id="egg-style"; el.textContent=STYLE_CSS; DOC.head.appendChild(el); }
+
+  function largestCanvas(){
+    const list = Array.from(DOC.querySelectorAll("canvas"));
+    if (!list.length) return null;
+    list.sort((a,b)=>(b.width*b.height)-(a.width*a.height));
+    return list[0];
+  }
+  function boardRect(){
+    const c = largestCanvas();
+    if (c) return c.getBoundingClientRect();
+    const all = Array.from(DOC.querySelectorAll("main, #wrap, #game, .container, body"));
+    let best = DOC.body, bestArea = 0;
+    for(const el of all){ const r = el.getBoundingClientRect(); const area = Math.abs(r.width*r.height); if (area>bestArea){ best=el; bestArea=area; } }
+    return best.getBoundingClientRect();
+  }
+
+  // ----- smarter frog locator -----
+  let candidateKey = null;
+  function getFrogPositionSmart(){
+    if (typeof WIN.getFrogPosition === "function") {
+      try{ const p = WIN.getFrogPosition(); if (p && typeof p.x==="number" && typeof p.y==="number") return p; }catch{}
+    }
+    const common = ["frog","player","hero","avatar"];
+    for(const k of common){
+      const v = WIN[k];
+      if (v && typeof v.x==="number" && typeof v.y==="number") { candidateKey=k; return {x:v.x, y:v.y}; }
+    }
+    if (candidateKey && WIN[candidateKey]) {
+      const v = WIN[candidateKey]; if (typeof v.x==="number" && typeof v.y==="number") return {x:v.x, y:v.y};
+    }
+    // fallback scan
+    const bounds = boardRect();
+    const dpr = (WIN.DPR || WIN.devicePixelRatio || 1);
+    const maxX = (bounds.width  * dpr) * 1.5;
+    const maxY = (bounds.height * dpr) * 1.5;
+    let best = null; let bestScore = -1; const centerX = maxX/2; const topY = maxY*0.2;
+    for (const k in WIN){
+      try{
+        const v = WIN[k];
+        if (!v || typeof v !== "object") continue;
+        const x = v.x, y = v.y;
+        if (typeof x !== "number" || typeof y !== "number") continue;
+        if (x < -50 || y < -50 || x > maxX || y > maxY) continue;
+        const score = 1000 - Math.hypot((x - centerX), (y - topY));
+        if (score > bestScore){ bestScore = score; best = {key:k, x, y}; }
+      }catch{}
+    }
+    if (best){ candidateKey = best.key; return {x: best.x, y: best.y}; }
+    return null;
+  }
+
+  // ----- Lava veil helpers -----
+  let lavaVeil=null, lavaBand={ top:0.22, bottom:0.86 }; // defaults based on typical board
+  function ensureLavaVeil(){
+    if (lavaVeil) return lavaVeil;
+    lavaVeil = DOC.createElement("div");
+    lavaVeil.id = "lavaVeil";
+    DOC.body.appendChild(lavaVeil);
+    positionLavaVeil();
+    WIN.addEventListener("resize", positionLavaVeil);
+    return lavaVeil;
+  }
+  function positionLavaVeil(){
+    if (!lavaVeil) return;
+    const rect = boardRect();
+    const top = rect.top + rect.height * lavaBand.top;
+    const height = rect.height * (lavaBand.bottom - lavaBand.top);
+    lavaVeil.style.left = rect.left + "px";
+    lavaVeil.style.width = rect.width + "px";
+    lavaVeil.style.top = top + "px";
+    lavaVeil.style.height = height + "px";
+  }
+
+  // ----- Pompeii (vesuvius) -----
+  let pompeiiTimer=null, pompeiiOn=false;
+  function spawnAshOrEmber(){
+    const w = window.innerWidth;
+    const isEmber = Math.random() < 0.35;
+    const el = DOC.createElement("div");
+    el.className = isEmber ? "ember" : "ash";
+    el.style.left = (Math.random()*w) + "px";
+    if (isEmber){ el.style.setProperty("--drift", (Math.random()*160-80)+"px"); el.style.animationDuration = (1.6 + Math.random()*1.2) + "s"; }
+    else { el.style.animationDuration = (1.2 + Math.random()*1.3) + "s"; }
+    DOC.body.appendChild(el);
+    setTimeout(()=>el.remove(), 4000);
+  }
+  function randomPoly(){
+    // Make a 7–9 sided jagged polygon clip-path
+    const n = 7 + Math.floor(Math.random()*3);
+    const pts = [];
+    for(let i=0;i<n;i++){
+      const a = (i/n) * Math.PI*2 + Math.random()*0.2;
+      const r = 40 + Math.random()*55; // radius in % of half size -> we'll normalize to 0..100%
+      const x = 50 + Math.cos(a) * r/2;
+      const y = 50 + Math.sin(a) * r/2;
+      pts.push(Math.max(2,Math.min(98,x)).toFixed(1) + "% " + Math.max(2,Math.min(98,y)).toFixed(1) + "%");
+    }
+    return "polygon(" + pts.join(",") + ")";
+  }
+  function spawnRock(){
+    const w = window.innerWidth;
+    const el = DOC.createElement("div");
+    el.className = "rock";
+    const size = 44 + Math.floor(Math.random()*34); // 44–78px
+    el.style.setProperty("--rock-size", size + "px");
+    el.style.left = (Math.random()* (w - size)) + "px";
+    el.style.setProperty("--rock-dur", (2.4 + Math.random()*1.6) + "s");
+    el.style.setProperty("--rot", ( (Math.random()<0.5?-1:1) * (20 + Math.random()*120) ) + "deg");
+    el.style.setProperty("--clip", randomPoly());
+    DOC.body.appendChild(el);
+    setTimeout(()=>el.remove(), 5200);
+  }
+  function startPompeii(){
+    ensureStyle();
+    ensureLavaVeil();
+    positionLavaVeil();
+    if(pompeiiTimer) return;
+    const tick = () => {
+      const dust = 8 + Math.floor(Math.random()*8);
+      for(let i=0;i<dust;i++) spawnAshOrEmber();
+      const rocks = Math.random()<0.7 ? (1 + Math.floor(Math.random()*2)) : 0; // 0–2 rocks most ticks
+      for(let r=0;r<rocks;r++) spawnRock();
+      positionLavaVeil();
+    };
+    tick();
+    pompeiiTimer = setInterval(tick, 220);
+    pompeiiOn = true;
+    lavaVeil.style.opacity = ".7";
+    toast("🌋 Pompeii Mode ON — ash, embers, jagged rocks; river turns to lava");
+  }
+  function stopPompeii(){
+    if(pompeiiTimer) clearInterval(pompeiiTimer);
+    pompeiiTimer=null; pompeiiOn=false;
+    if (lavaVeil){ lavaVeil.style.opacity="0"; lavaVeil.remove(); lavaVeil=null; }
+    toast("🧹 Pompeii Mode OFF");
+  }
+  function togglePompeii(){ if(pompeiiOn) stopPompeii(); else startPompeii(); }
+
+  // ----- Orator (auto-follow) -----
+  let ciceroActive=false, ciceroNode=null, ciceroLoop=null, followRAF=null;
+  function ensureCiceroNode(){
+    ensureStyle();
+    if(ciceroNode) return ciceroNode;
+    const wrap=DOC.createElement("div");
+    wrap.id="ciceroNPC";
+    wrap.innerHTML='<div class="frog">🐸🗣</div><div class="bubble">O tempora! O mores!</div>';
+    DOC.body.appendChild(wrap);
+    ciceroNode=wrap; return ciceroNode;
+  }
+  function placeCicero(){
+    if (!ciceroNode) return;
+    const rect = boardRect();
+    const pos = (typeof WIN.getFrogPosition==="function") ? WIN.getFrogPosition() : (WIN.frog||WIN.player||WIN.hero||WIN.avatar);
+    const dpr = (WIN.DPR || WIN.devicePixelRatio || 1);
+    const offset = {x: 40, y: -10};
+    if (pos && typeof pos.x==="number" && typeof pos.y==="number"){
+      const cssX = rect.left + (pos.x / dpr);
+      const cssY = rect.top  + (pos.y / dpr);
+      ciceroNode.style.left = (cssX + offset.x) + "px";
+      ciceroNode.style.top  = (cssY + offset.y) + "px";
+    } else {
+      ciceroNode.style.left = (rect.left + 16) + "px";
+      ciceroNode.style.top  = (rect.bottom - 64) + "px";
+    }
+  }
+  function startFollowing(){
+    if (followRAF) return;
+    const step = () => { if (!ciceroActive){ followRAF = null; return; } placeCicero(); followRAF = requestAnimationFrame(step); };
+    followRAF = requestAnimationFrame(step);
+  }
+  function stopFollowing(){ if (followRAF){ cancelAnimationFrame(followRAF); followRAF=null; } }
+  function ciceroSpeak(){ if(!ciceroActive) return; ensureCiceroNode(); placeCicero(); ciceroNode.style.display="block"; ciceroNode.classList.add("show"); const bubble = ciceroNode.querySelector('.bubble'); bubble.style.transition='none'; bubble.offsetHeight; bubble.style.transition='opacity .2s ease, transform .2s ease'; setTimeout(()=>{ if(ciceroNode) ciceroNode.classList.remove("show"); }, 1600); }
+  function startCiceroLoop(){ if(ciceroLoop) return; ciceroLoop = setInterval(ciceroSpeak, 2200); ciceroSpeak(); }
+  function stopCiceroLoop(){ if(ciceroLoop) clearInterval(ciceroLoop); ciceroLoop=null; }
+  function activateCicero(){ ciceroActive = true; ensureCiceroNode(); startFollowing(); startCiceroLoop(); toast("🎙 Cicero Mode ON"); }
+  function deactivateCicero(){ ciceroActive = false; stopCiceroLoop(); stopFollowing(); if(ciceroNode) ciceroNode.style.display="none"; toast("🤫 Cicero Mode OFF"); }
+  function toggleCicero(){ if(ciceroActive) deactivateCicero(); else activateCicero(); }
+
+  // ----- Hard Mode -----
+  function activateHardMode(){
+    const singular=[0,1,2,3,4], plural=[5,6,7,8,9];
+    shuffle(singular); shuffle(plural);
+    if(Array.isArray(WIN.caseOrder)){ WIN.caseOrder.length=0; WIN.caseOrder.push(...singular,...plural); }
+    else { WIN.caseOrder = singular.concat(plural); }
+    if(typeof WIN.updateCaseOrderLegend==="function") WIN.updateCaseOrderLegend();
+    if(typeof WIN.startRun==="function") WIN.startRun();
+    toast("💀 Hard Mode: singular & plural separately scrambled");
+  }
+
+  // Register built-ins
+  register("hard", activateHardMode);
+  register("vesuvius", togglePompeii);
+  register("orator", toggleCicero);
+
+  // Public API
+  WIN.EasterEggs = {
+    register, unregister, setEnabled,
+    startPompeii, stopPompeii, togglePompeii,
+    activateCicero, deactivateCicero, toggleCicero,
+    setPositionProvider(fn){ if(typeof fn==='function'){ WIN.getFrogPosition = fn; toast('📍 Orator position provider set'); } },
+    setLavaBand(topFrac,bottomFrac){ if(typeof topFrac==='number'&&typeof bottomFrac==='number'){ lavaBand.top=topFrac; lavaBand.bottom=bottomFrac; positionLavaVeil(); toast('🌋 Lava band updated'); } },
+    _version: 11
+  };
+  console.log("[EasterEggs] Registry v11 installed.");
+})();
 
 </script>
 </body>
