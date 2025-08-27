@@ -883,11 +883,19 @@ window.addEventListener('keydown', (e) => {
       hardModeActive = !hardModeActive;
       if(hardModeActive){
         // Generate a random permutation of the ten case indices (0..9).
-        caseOrder = DEFAULT_CASE_ORDER.slice();
-        for(let i = caseOrder.length - 1; i > 0; i--){
-          const j = Math.floor(Math.random() * (i + 1));
-          [caseOrder[i], caseOrder[j]] = [caseOrder[j], caseOrder[i]];
-        }
+        // Generate two independent permutations: singular (rows 0..4) and plural (rows 5..9)
+function shuffle(arr){
+  for(let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+const singular = shuffle([0,1,2,3,4]);   // Nom, Gen, Dat, Acc, Abl (singular), scrambled
+const plural   = shuffle([5,6,7,8,9]);   // Nom, Gen, Dat, Acc, Abl (plural), scrambled
+caseOrder = singular.concat(plural);
+
         showToast('Hard mode activated!');
       } else {
         // Restore the default order
