@@ -2957,23 +2957,16 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
 
 <script>
 
-/* === Easter Egg Registry (inline v11) ===
-   Built-ins: "hard", "vesuvius"(toggle), "orator"(toggle)
-   - Vesuvius: ash + embers + jagged falling rocks; **lava veil** tints only the river band red
-   - Orator: follows player (auto-detect frog coords); keeps speaking until toggled off
+/* === Easter Egg Registry (inline v14) ===
+   Built-ins: "hard", "vesuvius"(toggle), "orator"(toggle), "speculum"(mirror toggle), "retro mode"(Janus pixel mode toggle)
+   Aliases: "retro" (kept for convenience)
 */
 (function () {
   const DOC = document;
   const WIN = window;
-  if (WIN.EasterEggs && WIN.EasterEggs._version === 11) return;
+  if (WIN.EasterEggs && WIN.EasterEggs._version === 14) return;
 
-  function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
+  function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
   function toast(msg){ if(typeof WIN.showToast==="function") WIN.showToast(msg); else console.log("[Toast]", msg); }
 
   const REGISTRY = new Map();
@@ -2982,295 +2975,244 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
   function unregister(code){ REGISTRY.delete(String(code||"").toLowerCase().trim()); }
   function setEnabled(v){ enabled=!!v; }
 
-  let buffer="";
-  DOC.addEventListener("keydown",(e)=>{
-    if(!enabled) return;
-    const tag=(e.target&&e.target.tagName)||"";
-    if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"||e.isComposing) return;
-    if(e.key && e.key.length===1){
-      buffer+=e.key.toLowerCase();
-      if(buffer.length>48) buffer=buffer.slice(-48);
-      for(const [code,handler] of REGISTRY.entries()){
-        if(buffer.endsWith(code)){
-          try{ handler(); }catch(err){ console.error("EasterEgg error",code,err); }
-          buffer=""; break;
-        }
-      }
-    } else if (e.key==="Escape"){ buffer=""; }
-  });
+  let buffer=""; DOC.addEventListener("keydown",(e)=>{ if(!enabled) return; const tag=(e.target&&e.target.tagName)||""; if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"||e.isComposing) return;
+    if(e.key && e.key.length===1){ buffer+=e.key.toLowerCase(); if(buffer.length>64) buffer=buffer.slice(-64);
+      for(const [code,handler] of REGISTRY.entries()){ if(buffer.endsWith(code)){ try{ handler(); }catch(err){ console.error("EasterEgg error",code,err); } buffer=""; break; } } }
+    else if (e.key==="Escape"){ buffer=""; } });
 
   const STYLE_CSS = `
   .ash{position:fixed;top:-24px;width:8px;height:8px;background:#666;border-radius:50%;opacity:.9;pointer-events:none;animation:egg_fall linear forwards}
   .ember{position:fixed;top:-28px;width:10px;height:10px;background: radial-gradient(circle at 30% 30%, #ffd08a, #ff5a36 60%, #aa1f09 100%);
          border-radius:50%; box-shadow: 0 0 10px rgba(255,90,54,.8), 0 0 18px rgba(255,160,80,.6);
          opacity:.95; pointer-events:none; animation:ember_fall linear forwards, ember_flicker 0.6s infinite}
-  /* Jagged rock: angular polygon, stone texture, spin+fall */
-  .rock{position:fixed;top:-80px;
-        width:var(--rock-size,56px);height:var(--rock-size,56px);
-        pointer-events:none; opacity:.98;
-        background:
-          /* grain */
-          repeating-linear-gradient(135deg, rgba(255,255,255,.05) 0 2px, rgba(0,0,0,.07) 2px 4px),
-          /* facets */
-          linear-gradient(150deg, #888 0%, #6c6c6c 55%, #4a4a4a 100%);
-        background-blend-mode: overlay;
-        filter: drop-shadow(0 10px 14px rgba(0,0,0,.45));
-        animation: rock_fall var(--rock-dur,3s) linear forwards;
-        transform: translateY(-80px) rotate(var(--rot,0deg));
-        clip-path: var(--clip, polygon(10% 8%, 55% 0%, 92% 20%, 84% 58%, 60% 96%, 22% 88%, 4% 52%));
-       }
-  .rock::after{
-        content:"";
-        position:absolute; inset:0;
-        background:
-          radial-gradient(120% 80% at 20% 15%, rgba(255,255,255,.15), transparent 40%),
-          radial-gradient(100% 100% at 80% 80%, rgba(0,0,0,.25), transparent 50%);
-        mix-blend-mode: soft-light;
-        clip-path: inherit;
-      }
+  .rock{position:fixed;top:-80px;width:var(--rock-size,56px);height:var(--rock-size,56px);pointer-events:none;opacity:.98;
+        background:repeating-linear-gradient(135deg, rgba(255,255,255,.05) 0 2px, rgba(0,0,0,.07) 2px 4px),linear-gradient(150deg,#888 0%,#6c6c6c 55%,#4a4a4a 100%);
+        background-blend-mode: overlay; filter: drop-shadow(0 10px 14px rgba(0,0,0,.45)); animation: rock_fall var(--rock-dur,3s) linear forwards;
+        transform: translateY(-80px) rotate(var(--rot,0deg)); clip-path: var(--clip, polygon(10% 8%, 55% 0%, 92% 20%, 84% 58%, 60% 96%, 22% 88%, 4% 52%));}
+  .rock::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 20% 15%, rgba(255,255,255,.15), transparent 40%),radial-gradient(100% 100% at 80% 80%, rgba(0,0,0,.25), transparent 50%);mix-blend-mode:soft-light;clip-path:inherit}
   @keyframes egg_fall{from{transform:translateY(-24px);opacity:.95}to{transform:translateY(115vh);opacity:0}}
   @keyframes ember_fall{0%{transform: translate(0,-28px) rotate(0deg);}100%{transform: translate(var(--drift, 30px), 115vh) rotate(360deg);}}
   @keyframes ember_flicker{0%,100% { filter: brightness(1);} 50%{ filter: brightness(1.4);} }
-  @keyframes rock_fall{
-    to { transform: translateY(110vh) rotate(calc(var(--rot,0deg) + 540deg)); }
-  }
-  /* Orator */
-  #ciceroNPC{
-    position:fixed;
-    display:none;
-    z-index: 2147483000;
-    pointer-events: none;
-    text-align: center;
-    font-family: Cinzel, serif;
-  }
-  #ciceroNPC .frog{ font-size: 28px; }
-  #ciceroNPC .bubble{
-    position: absolute;
-    left: 40px; bottom: 30px;
-    transform-origin: left bottom;
-    background:#fff; border:2px solid #000; padding:8px 12px; border-radius:10px;
-    font-size: 16px; box-shadow:0 2px 8px rgba(0,0,0,.25);
-    opacity:0; transform: scale(.9);
-    transition: opacity .2s ease, transform .2s ease;
-    white-space: nowrap;
-  }
-  #ciceroNPC.show .bubble{ opacity:1; transform: scale(1); }
-  /* Lava veil overlays the river band only */
-  #lavaVeil{
-    position:fixed;
-    pointer-events:none;
-    z-index: 2147482000;
-    opacity: .65;
-    mix-blend-mode: color;
-    background: linear-gradient(0deg, #a51600 0%, #c51a00 50%, #8a1200 100%);
-    border-radius: 6px;
-    transition: opacity .25s ease;
-  }`;
-  function ensureStyle(){ if(DOC.getElementById("egg-style")) return; const el=DOC.createElement("style"); el.id="egg-style"; el.textContent=STYLE_CSS; DOC.head.appendChild(el); }
+  @keyframes rock_fall{ to { transform: translateY(110vh) rotate(calc(var(--rot,0deg) + 540deg)); } }
+  #ciceroNPC{ position:fixed; display:none; z-index:2147483000; pointer-events:none; text-align:center; font-family:Cinzel, serif; }
+  #ciceroNPC .frog{ font-size:28px; }
+  #ciceroNPC .bubble{ position:absolute; left:40px; bottom:30px; transform-origin:left bottom; background:#fff; border:2px solid #000; padding:8px 12px; border-radius:10px; font-size:16px; box-shadow:0 2px 8px rgba(0,0,0,.25); opacity:0; transform:scale(.9); transition:opacity .2s ease, transform .2s ease; white-space:nowrap; }
+  #ciceroNPC.show .bubble{ opacity:1; transform:scale(1); }
+  #lavaVeil{ position:fixed; pointer-events:none; z-index:2147482000; opacity:.65; mix-blend-mode: color; background: linear-gradient(0deg, #a51600 0%, #c51a00 50%, #8a1200 100%); border-radius:6px; transition:opacity .25s ease; }
+  body.mirror-mode{ transform: scaleX(-1); transform-origin: 50% 50%; }
+  /* Retro overlay */
+  #retroCanvas{ position:fixed; z-index:2147482600; pointer-events:none; image-rendering: pixelated; }
+  #retroScan{ position:fixed; z-index:2147482650; pointer-events:none; background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, rgba(0,0,0,0) 1px 3px);
+      mix-blend-mode: multiply; opacity:.35; }
+  #retroGrid{ position:fixed; z-index:2147482625; pointer-events:none; }
+  `;
+  function ensureStyle(){ if(document.getElementById("egg-style")) return; const el=document.createElement("style"); el.id="egg-style"; el.textContent=STYLE_CSS; document.head.appendChild(el); }
 
-  function largestCanvas(){
-    const list = Array.from(DOC.querySelectorAll("canvas"));
-    if (!list.length) return null;
-    list.sort((a,b)=>(b.width*b.height)-(a.width*a.height));
-    return list[0];
-  }
-  function boardRect(){
-    const c = largestCanvas();
-    if (c) return c.getBoundingClientRect();
-    const all = Array.from(DOC.querySelectorAll("main, #wrap, #game, .container, body"));
-    let best = DOC.body, bestArea = 0;
-    for(const el of all){ const r = el.getBoundingClientRect(); const area = Math.abs(r.width*r.height); if (area>bestArea){ best=el; bestArea=area; } }
-    return best.getBoundingClientRect();
-  }
+  function largestCanvas(){ const list = Array.from(document.querySelectorAll("canvas")); if (!list.length) return null; list.sort((a,b)=>(b.width*b.height)-(a.width*a.height)); return list[0]; }
+  function boardRect(){ const c = largestCanvas(); if (c) return c.getBoundingClientRect(); const all = Array.from(document.querySelectorAll("main, #wrap, #game, .container, body")); let best = document.body, bestArea = 0; for(const el of all){ const r = el.getBoundingClientRect(); const area = Math.abs(r.width*r.height); if (area>bestArea){ best=el; bestArea=area; } } return best.getBoundingClientRect(); }
 
-  // ----- smarter frog locator -----
+  // ----- Frog locator (smart) -----
   let candidateKey = null;
   function getFrogPositionSmart(){
-    if (typeof WIN.getFrogPosition === "function") {
-      try{ const p = WIN.getFrogPosition(); if (p && typeof p.x==="number" && typeof p.y==="number") return p; }catch{}
-    }
+    if (typeof window.getFrogPosition === "function") { try{ const p = window.getFrogPosition(); if (p && typeof p.x==="number" && typeof p.y==="number") return p; }catch{} }
     const common = ["frog","player","hero","avatar"];
-    for(const k of common){
-      const v = WIN[k];
-      if (v && typeof v.x==="number" && typeof v.y==="number") { candidateKey=k; return {x:v.x, y:v.y}; }
-    }
-    if (candidateKey && WIN[candidateKey]) {
-      const v = WIN[candidateKey]; if (typeof v.x==="number" && typeof v.y==="number") return {x:v.x, y:v.y};
-    }
-    // fallback scan
-    const bounds = boardRect();
-    const dpr = (WIN.DPR || WIN.devicePixelRatio || 1);
-    const maxX = (bounds.width  * dpr) * 1.5;
-    const maxY = (bounds.height * dpr) * 1.5;
-    let best = null; let bestScore = -1; const centerX = maxX/2; const topY = maxY*0.2;
-    for (const k in WIN){
-      try{
-        const v = WIN[k];
-        if (!v || typeof v !== "object") continue;
-        const x = v.x, y = v.y;
-        if (typeof x !== "number" || typeof y !== "number") continue;
-        if (x < -50 || y < -50 || x > maxX || y > maxY) continue;
-        const score = 1000 - Math.hypot((x - centerX), (y - topY));
-        if (score > bestScore){ bestScore = score; best = {key:k, x, y}; }
-      }catch{}
-    }
-    if (best){ candidateKey = best.key; return {x: best.x, y: best.y}; }
+    for(const k of common){ const v = window[k]; if (v && typeof v.x==="number" && typeof v.y==="number") { candidateKey=k; return {x:v.x, y:v.y}; } }
+    if (candidateKey && window[candidateKey]){ const v = window[candidateKey]; if (typeof v.x==="number" && typeof v.y==="number") return {x:v.x, y:v.y}; }
+    const bounds = boardRect(); const dpr = (window.DPR || window.devicePixelRatio || 1); const maxX=(bounds.width*dpr)*1.5, maxY=(bounds.height*dpr)*1.5;
+    let best=null, bestScore=-1, centerX=maxX/2, topY=maxY*0.2;
+    for (const k in window){ try{ const v=window[k]; if(!v || typeof v!=="object") continue; const x=v.x, y=v.y; if(typeof x!=="number"||typeof y!=="number") continue; if(x<-50||y<-50||x>maxX||y>maxY) continue; const score = 1000 - Math.hypot((x-centerX),(y-topY)); if(score>bestScore){ bestScore=score; best={key:k,x,y}; } }catch{} }
+    if(best){ candidateKey=best.key; return {x:best.x, y:best.y}; }
     return null;
   }
 
   // ----- Lava veil helpers -----
-  let lavaVeil=null, lavaBand={ top:0.22, bottom:0.86 }; // defaults based on typical board
-  function ensureLavaVeil(){
-    if (lavaVeil) return lavaVeil;
-    lavaVeil = DOC.createElement("div");
-    lavaVeil.id = "lavaVeil";
-    DOC.body.appendChild(lavaVeil);
-    positionLavaVeil();
-    WIN.addEventListener("resize", positionLavaVeil);
-    return lavaVeil;
-  }
-  function positionLavaVeil(){
-    if (!lavaVeil) return;
-    const rect = boardRect();
-    const top = rect.top + rect.height * lavaBand.top;
-    const height = rect.height * (lavaBand.bottom - lavaBand.top);
-    lavaVeil.style.left = rect.left + "px";
-    lavaVeil.style.width = rect.width + "px";
-    lavaVeil.style.top = top + "px";
-    lavaVeil.style.height = height + "px";
-  }
+  let lavaVeil=null, lavaBand={ top:0.22, bottom:0.86 };
+  function ensureLavaVeil(){ if (lavaVeil) return lavaVeil; lavaVeil=document.createElement("div"); lavaVeil.id="lavaVeil"; document.body.appendChild(lavaVeil); positionLavaVeil(); window.addEventListener("resize", positionLavaVeil); return lavaVeil; }
+  function positionLavaVeil(){ if(!lavaVeil) return; const rect=boardRect(); const top = rect.top + rect.height * lavaBand.top; const height=rect.height * (lavaBand.bottom - lavaBand.top);
+    lavaVeil.style.left = rect.left + "px"; lavaVeil.style.width = rect.width + "px"; lavaVeil.style.top = top + "px"; lavaVeil.style.height = height + "px"; }
 
   // ----- Pompeii (vesuvius) -----
   let pompeiiTimer=null, pompeiiOn=false;
-  function spawnAshOrEmber(){
-    const w = window.innerWidth;
-    const isEmber = Math.random() < 0.35;
-    const el = DOC.createElement("div");
-    el.className = isEmber ? "ember" : "ash";
-    el.style.left = (Math.random()*w) + "px";
-    if (isEmber){ el.style.setProperty("--drift", (Math.random()*160-80)+"px"); el.style.animationDuration = (1.6 + Math.random()*1.2) + "s"; }
-    else { el.style.animationDuration = (1.2 + Math.random()*1.3) + "s"; }
-    DOC.body.appendChild(el);
-    setTimeout(()=>el.remove(), 4000);
-  }
-  function randomPoly(){
-    // Make a 7–9 sided jagged polygon clip-path
-    const n = 7 + Math.floor(Math.random()*3);
-    const pts = [];
-    for(let i=0;i<n;i++){
-      const a = (i/n) * Math.PI*2 + Math.random()*0.2;
-      const r = 40 + Math.random()*55; // radius in % of half size -> we'll normalize to 0..100%
-      const x = 50 + Math.cos(a) * r/2;
-      const y = 50 + Math.sin(a) * r/2;
-      pts.push(Math.max(2,Math.min(98,x)).toFixed(1) + "% " + Math.max(2,Math.min(98,y)).toFixed(1) + "%");
-    }
-    return "polygon(" + pts.join(",") + ")";
-  }
-  function spawnRock(){
-    const w = window.innerWidth;
-    const el = DOC.createElement("div");
-    el.className = "rock";
-    const size = 44 + Math.floor(Math.random()*34); // 44–78px
-    el.style.setProperty("--rock-size", size + "px");
-    el.style.left = (Math.random()* (w - size)) + "px";
-    el.style.setProperty("--rock-dur", (2.4 + Math.random()*1.6) + "s");
-    el.style.setProperty("--rot", ( (Math.random()<0.5?-1:1) * (20 + Math.random()*120) ) + "deg");
-    el.style.setProperty("--clip", randomPoly());
-    DOC.body.appendChild(el);
-    setTimeout(()=>el.remove(), 5200);
-  }
-  function startPompeii(){
-    ensureStyle();
-    ensureLavaVeil();
-    positionLavaVeil();
-    if(pompeiiTimer) return;
-    const tick = () => {
-      const dust = 8 + Math.floor(Math.random()*8);
-      for(let i=0;i<dust;i++) spawnAshOrEmber();
-      const rocks = Math.random()<0.7 ? (1 + Math.floor(Math.random()*2)) : 0; // 0–2 rocks most ticks
-      for(let r=0;r<rocks;r++) spawnRock();
-      positionLavaVeil();
-    };
-    tick();
-    pompeiiTimer = setInterval(tick, 220);
-    pompeiiOn = true;
-    lavaVeil.style.opacity = ".7";
-    toast("🌋 Pompeii Mode ON — ash, embers, jagged rocks; river turns to lava");
-  }
-  function stopPompeii(){
-    if(pompeiiTimer) clearInterval(pompeiiTimer);
-    pompeiiTimer=null; pompeiiOn=false;
-    if (lavaVeil){ lavaVeil.style.opacity="0"; lavaVeil.remove(); lavaVeil=null; }
-    toast("🧹 Pompeii Mode OFF");
-  }
+  function spawnAshOrEmber(){ const w=window.innerWidth; const isEmber=Math.random()<0.35; const el=document.createElement("div"); el.className=isEmber?"ember":"ash"; el.style.left=(Math.random()*w)+"px";
+    if(isEmber){ el.style.setProperty("--drift",(Math.random()*160-80)+"px"); el.style.animationDuration=(1.6+Math.random()*1.2)+"s"; } else { el.style.animationDuration=(1.2+Math.random()*1.3)+"s"; }
+    document.body.appendChild(el); setTimeout(()=>el.remove(),4000); }
+  function randomPoly(){ const n=7+Math.floor(Math.random()*3); const pts=[]; for(let i=0;i<n;i++){ const a=(i/n)*Math.PI*2 + Math.random()*0.2; const r=40+Math.random()*55; const x=50+Math.cos(a)*r/2; const y=50+Math.sin(a)*r/2; pts.push(Math.max(2,Math.min(98,x)).toFixed(1)+"% "+Math.max(2,Math.min(98,y)).toFixed(1)+"%"); } return "polygon("+pts.join(",")+")"; }
+  function spawnRock(){ const w=window.innerWidth; const el=document.createElement("div"); el.className="rock"; const size=44+Math.floor(Math.random()*34); el.style.setProperty("--rock-size",size+"px"); el.style.left=(Math.random()*(w-size))+"px"; el.style.setProperty("--rock-dur",(2.4+Math.random()*1.6)+"s"); el.style.setProperty("--rot",((Math.random()<0.5?-1:1)*(20+Math.random()*120))+"deg"); el.style.setProperty("--clip",randomPoly()); document.body.appendChild(el); setTimeout(()=>el.remove(),5200); }
+  function startPompeii(){ ensureStyle(); ensureLavaVeil(); positionLavaVeil(); if(pompeiiTimer) return;
+    const tick=()=>{ const dust=8+Math.floor(Math.random()*8); for(let i=0;i<dust;i++) spawnAshOrEmber(); const rocks=Math.random()<0.7 ? (1+Math.floor(Math.random()*2)) : 0; for(let r=0;r<rocks;r++) spawnRock(); positionLavaVeil(); };
+    tick(); pompeiiTimer=setInterval(tick,220); pompeiiOn=true; lavaVeil.style.opacity=".7"; toast("🌋 Pompeii Mode ON — lava river + falling rocks"); }
+  function stopPompeii(){ if(pompeiiTimer) clearInterval(pompeiiTimer); pompeiiTimer=null; pompeiiOn=false; if(lavaVeil){ lavaVeil.style.opacity="0"; lavaVeil.remove(); lavaVeil=null; } toast("🧹 Pompeii Mode OFF"); }
   function togglePompeii(){ if(pompeiiOn) stopPompeii(); else startPompeii(); }
 
-  // ----- Orator (auto-follow) -----
+  // ----- Orator -----
   let ciceroActive=false, ciceroNode=null, ciceroLoop=null, followRAF=null;
-  function ensureCiceroNode(){
-    ensureStyle();
-    if(ciceroNode) return ciceroNode;
-    const wrap=DOC.createElement("div");
-    wrap.id="ciceroNPC";
-    wrap.innerHTML='<div class="frog">🐸🗣</div><div class="bubble">O tempora! O mores!</div>';
-    DOC.body.appendChild(wrap);
-    ciceroNode=wrap; return ciceroNode;
-  }
-  function placeCicero(){
-    if (!ciceroNode) return;
-    const rect = boardRect();
-    const pos = (typeof WIN.getFrogPosition==="function") ? WIN.getFrogPosition() : (WIN.frog||WIN.player||WIN.hero||WIN.avatar);
-    const dpr = (WIN.DPR || WIN.devicePixelRatio || 1);
-    const offset = {x: 40, y: -10};
-    if (pos && typeof pos.x==="number" && typeof pos.y==="number"){
-      const cssX = rect.left + (pos.x / dpr);
-      const cssY = rect.top  + (pos.y / dpr);
-      ciceroNode.style.left = (cssX + offset.x) + "px";
-      ciceroNode.style.top  = (cssY + offset.y) + "px";
-    } else {
-      ciceroNode.style.left = (rect.left + 16) + "px";
-      ciceroNode.style.top  = (rect.bottom - 64) + "px";
-    }
-  }
-  function startFollowing(){
-    if (followRAF) return;
-    const step = () => { if (!ciceroActive){ followRAF = null; return; } placeCicero(); followRAF = requestAnimationFrame(step); };
-    followRAF = requestAnimationFrame(step);
-  }
-  function stopFollowing(){ if (followRAF){ cancelAnimationFrame(followRAF); followRAF=null; } }
-  function ciceroSpeak(){ if(!ciceroActive) return; ensureCiceroNode(); placeCicero(); ciceroNode.style.display="block"; ciceroNode.classList.add("show"); const bubble = ciceroNode.querySelector('.bubble'); bubble.style.transition='none'; bubble.offsetHeight; bubble.style.transition='opacity .2s ease, transform .2s ease'; setTimeout(()=>{ if(ciceroNode) ciceroNode.classList.remove("show"); }, 1600); }
-  function startCiceroLoop(){ if(ciceroLoop) return; ciceroLoop = setInterval(ciceroSpeak, 2200); ciceroSpeak(); }
+  function ensureCiceroNode(){ ensureStyle(); if(ciceroNode) return ciceroNode; const w=document.createElement("div"); w.id="ciceroNPC"; w.innerHTML='<div class="frog">🐸🗣</div><div class="bubble">O tempora! O mores!</div>'; document.body.appendChild(w); ciceroNode=w; return ciceroNode; }
+  function placeCicero(){ if(!ciceroNode) return; const rect=boardRect(); const pos=getFrogPositionSmart(); const dpr=(window.DPR||window.devicePixelRatio||1); const offset={x:40,y:-10};
+    if(pos){ const cssX=rect.left+(pos.x/dpr); const cssY=rect.top+(pos.y/dpr); ciceroNode.style.left=(cssX+offset.x)+"px"; ciceroNode.style.top=(cssY+offset.y)+"px"; } else { ciceroNode.style.left=(rect.left+16)+"px"; ciceroNode.style.top=(rect.bottom-64)+"px"; } }
+  function startFollowing(){ if(followRAF) return; const step=()=>{ if(!ciceroActive){ followRAF=null; return;} placeCicero(); followRAF=requestAnimationFrame(step); }; followRAF=requestAnimationFrame(step); }
+  function stopFollowing(){ if(followRAF){ cancelAnimationFrame(followRAF); followRAF=null; } }
+  function ciceroSpeak(){ if(!ciceroActive) return; ensureCiceroNode(); placeCicero(); ciceroNode.style.display="block"; ciceroNode.classList.add("show"); const b=ciceroNode.querySelector(".bubble"); b.style.transition="none"; b.offsetHeight; b.style.transition="opacity .2s ease, transform .2s ease"; setTimeout(()=>{ if(ciceroNode) ciceroNode.classList.remove("show"); },1600); }
+  function startCiceroLoop(){ if(ciceroLoop) return; ciceroLoop=setInterval(ciceroSpeak,2200); ciceroSpeak(); }
   function stopCiceroLoop(){ if(ciceroLoop) clearInterval(ciceroLoop); ciceroLoop=null; }
-  function activateCicero(){ ciceroActive = true; ensureCiceroNode(); startFollowing(); startCiceroLoop(); toast("🎙 Cicero Mode ON"); }
-  function deactivateCicero(){ ciceroActive = false; stopCiceroLoop(); stopFollowing(); if(ciceroNode) ciceroNode.style.display="none"; toast("🤫 Cicero Mode OFF"); }
+  function activateCicero(){ ciceroActive=true; ensureCiceroNode(); startFollowing(); startCiceroLoop(); toast("🎙 Cicero Mode ON"); }
+  function deactivateCicero(){ ciceroActive=false; stopCiceroLoop(); stopFollowing(); if(ciceroNode) ciceroNode.style.display="none"; toast("🤫 Cicero Mode OFF"); }
   function toggleCicero(){ if(ciceroActive) deactivateCicero(); else activateCicero(); }
 
   // ----- Hard Mode -----
-  function activateHardMode(){
-    const singular=[0,1,2,3,4], plural=[5,6,7,8,9];
-    shuffle(singular); shuffle(plural);
-    if(Array.isArray(WIN.caseOrder)){ WIN.caseOrder.length=0; WIN.caseOrder.push(...singular,...plural); }
-    else { WIN.caseOrder = singular.concat(plural); }
-    if(typeof WIN.updateCaseOrderLegend==="function") WIN.updateCaseOrderLegend();
-    if(typeof WIN.startRun==="function") WIN.startRun();
-    toast("💀 Hard Mode: singular & plural separately scrambled");
+  function activateHardMode(){ const singular=[0,1,2,3,4], plural=[5,6,7,8,9]; shuffle(singular); shuffle(plural);
+    if(Array.isArray(window.caseOrder)){ window.caseOrder.length=0; window.caseOrder.push(...singular,...plural); } else { window.caseOrder=singular.concat(plural); }
+    if(typeof window.updateCaseOrderLegend==="function") window.updateCaseOrderLegend(); if(typeof window.startRun==="function") window.startRun(); toast("💀 Hard Mode: singular & plural separately scrambled"); }
+
+  // ----- Speculum (mirror) -----
+  let mirrorOn=false;
+  function startMirror(){ ensureStyle(); if(mirrorOn) return; document.body.classList.add("mirror-mode"); mirrorOn=true; toast("🪞 Speculum: screen mirrored"); }
+  function stopMirror(){ document.body.classList.remove("mirror-mode"); mirrorOn=false; toast("🪞 Speculum: mirror off"); }
+  function toggleMirror(){ if(mirrorOn) stopMirror(); else startMirror(); }
+
+  // ----- Retro (Janus) with palette quantization -----
+  let retroOn=false, retroCanvas=null, retroCtx=null, retroTmp=null, retroScan=null, retroGrid=null, retroRAF=null;
+  let retroPixelSize = 7; // chunkier default
+  // NES-like 16-color palette (approximate sRGB)
+  let retroPalette = [
+    [0,0,0],[29,43,83],[0,135,81],[0,87,132],[126,37,83],[76,30,115],
+    [171,82,54],[116,47,41],[223,113,38],[247,226,107],[255,255,255],
+    [195,195,199],[155,173,183],[48,96,130],[91,110,225],[99,155,255]
+  ];
+  function ensureRetroLayer(){
+    if (retroCanvas) return retroCanvas;
+    retroCanvas = document.createElement("canvas"); retroCanvas.id = "retroCanvas";
+    retroScan = document.createElement("div"); retroScan.id = "retroScan";
+    retroGrid = document.createElement("canvas"); retroGrid.id = "retroGrid";
+    document.body.appendChild(retroCanvas); document.body.appendChild(retroGrid); document.body.appendChild(retroScan);
+    retroCtx = retroCanvas.getContext("2d"); retroCtx.imageSmoothingEnabled = false;
+    retroTmp = document.createElement("canvas");
+    positionRetroLayer();
+    window.addEventListener("resize", positionRetroLayer);
+    window.addEventListener("scroll", positionRetroLayer, { passive: true });
+    drawGrid(); // initial
+    return retroCanvas;
   }
+  function positionRetroLayer(){
+    if (!retroCanvas) return;
+    const rect = boardRect();
+    const assign = (el) => { el.style.left = rect.left + "px"; el.style.top = rect.top + "px"; el.style.width = rect.width + "px"; el.style.height = rect.height + "px"; };
+    assign(retroCanvas); assign(retroScan); assign(retroGrid);
+    retroCanvas.width  = Math.max(1, Math.floor(rect.width));
+    retroCanvas.height = Math.max(1, Math.floor(rect.height));
+    retroGrid.width  = retroCanvas.width; retroGrid.height = retroCanvas.height;
+    drawGrid();
+  }
+  function drawGrid(){
+    if (!retroGrid) return;
+    const g = retroGrid.getContext("2d"); g.clearRect(0,0,retroGrid.width, retroGrid.height);
+    const step = Math.max(4, retroPixelSize);
+    g.imageSmoothingEnabled = false;
+    g.globalAlpha = 0.12;
+    g.strokeStyle = "rgba(0,0,0,0.7)";
+    g.beginPath();
+    for(let x=0;x<retroGrid.width;x+=step){ g.moveTo(x+0.5,0); g.lineTo(x+0.5,retroGrid.height); }
+    for(let y=0;y<retroGrid.height;y+=step){ g.moveTo(0,y+0.5); g.lineTo(retroGrid.width,y+0.5); }
+    g.stroke();
+    g.globalAlpha = 1;
+  }
+  function nearestPalColor(r,g,b){
+    let best=0, bestD=1e9;
+    for(let i=0;i<retroPalette.length;i++){
+      const p=retroPalette[i]; const dr=r-p[0], dg=g-p[1], db=b-p[2];
+      const d=dr*dr+dg*dg+db*db;
+      if(d<bestD){ bestD=d; best=i; }
+    }
+    return retroPalette[best];
+  }
+  function quantizeImageData(imgData){
+    const d = imgData.data;
+    for(let i=0;i<d.length;i+=4){
+      const q = nearestPalColor(d[i], d[i+1], d[i+2]);
+      d[i]=q[0]; d[i+1]=q[1]; d[i+2]=q[2];
+      // retain alpha
+    }
+    return imgData;
+  }
+  function retroStep(){
+    if (!retroOn) { retroRAF=null; return; }
+    const src = largestCanvas();
+    if (src && retroCanvas){
+      const rect = boardRect();
+      const px = Math.max(2, retroPixelSize);
+      const scaleX = src.width / rect.width;
+      const scaleY = src.height / rect.height;
+      const downW = Math.max(1, Math.floor(src.width  / (px*scaleX)));
+      const downH = Math.max(1, Math.floor(src.height / (px*scaleY)));
+      if (retroTmp.width !== downW || retroTmp.height !== downH){ retroTmp.width = downW; retroTmp.height = downH; }
+      const tctx = retroTmp.getContext("2d");
+      tctx.imageSmoothingEnabled = false;
+      tctx.clearRect(0,0,downW,downH);
+      tctx.drawImage(src, 0,0, src.width, src.height, 0,0, downW, downH);
+      // palette quantize downsampled image
+      let id = tctx.getImageData(0,0,downW,downH);
+      id = quantizeImageData(id);
+      tctx.putImageData(id, 0,0);
+      // upscale to overlay
+      retroCtx.imageSmoothingEnabled = false;
+      retroCtx.clearRect(0,0, retroCanvas.width, retroCanvas.height);
+      retroCtx.drawImage(retroTmp, 0,0, downW, downH, 0,0, retroCanvas.width, retroCanvas.height);
+    }
+    retroRAF = requestAnimationFrame(retroStep);
+  }
+  function startRetro(){
+    ensureStyle();
+    ensureRetroLayer();
+    if (retroOn) return;
+    retroOn = true;
+    retroCanvas.style.display = "block";
+    retroScan.style.display = "block";
+    retroGrid.style.display = "block";
+    positionRetroLayer();
+    drawGrid();
+    retroStep();
+    toast("🕹 Janus/Retro MODE: pixel palette ON");
+  }
+  function stopRetro(){
+    retroOn = false;
+    if (retroRAF) cancelAnimationFrame(retroRAF); retroRAF = null;
+    if (retroCanvas) retroCanvas.style.display="none";
+    if (retroScan) retroScan.style.display="none";
+    if (retroGrid) retroGrid.style.display="none";
+    toast("🕹 Janus/Retro MODE: off");
+  }
+  function toggleRetro(){ if(retroOn) stopRetro(); else startRetro(); }
 
   // Register built-ins
   register("hard", activateHardMode);
   register("vesuvius", togglePompeii);
   register("orator", toggleCicero);
+  register("speculum", toggleMirror);
+  register("retro mode", toggleRetro); // primary trigger
+  register("retro", toggleRetro);      // alias
 
   // Public API
-  WIN.EasterEggs = {
+  window.EasterEggs = {
     register, unregister, setEnabled,
     startPompeii, stopPompeii, togglePompeii,
     activateCicero, deactivateCicero, toggleCicero,
-    setPositionProvider(fn){ if(typeof fn==='function'){ WIN.getFrogPosition = fn; toast('📍 Orator position provider set'); } },
+    startMirror, stopMirror, toggleMirror,
+    startRetro, stopRetro, toggleRetro,
+    setPositionProvider(fn){ if(typeof fn==='function'){ window.getFrogPosition=fn; toast('📍 Orator position provider set'); } },
     setLavaBand(topFrac,bottomFrac){ if(typeof topFrac==='number'&&typeof bottomFrac==='number'){ lavaBand.top=topFrac; lavaBand.bottom=bottomFrac; positionLavaVeil(); toast('🌋 Lava band updated'); } },
-    _version: 11
+    setRetroPixelSize(v){ if(typeof v==='number' && v>1){ retroPixelSize = v; drawGrid(); toast('🕹 Retro pixel size = '+v); } },
+    setRetroPalette(name){
+      const presets = {
+        nes: [[0,0,0],[29,43,83],[0,135,81],[0,87,132],[126,37,83],[76,30,115],[171,82,54],[116,47,41],[223,113,38],[247,226,107],[255,255,255],[195,195,199],[155,173,183],[48,96,130],[91,110,225],[99,155,255]],
+        cga: [[0,0,0],[170,170,170],[255,255,255],[0,170,170],[170,0,170],[170,170,0],[0,255,255],[255,0,255],[255,255,0],[0,170,0],[0,0,170],[170,0,0]],
+        gameboy: [[15,56,15],[48,98,48],[139,172,15],[155,188,15],[222,248,222],[0,0,0]]
+      };
+      if (presets[name]){ retroPalette = presets[name]; toast('🕹 Retro palette: '+name); }
+      else { toast('🕹 Unknown palette'); }
+    },
+    _version: 14
   };
-  console.log("[EasterEggs] Registry v11 installed.");
+  console.log("[EasterEggs] Registry v14 installed.");
 })();
 
 </script>
