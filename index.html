@@ -920,33 +920,37 @@ window.addEventListener('keydown', (e) => {
       showToast(cerberusModeActive ? 'Cerberus mode activated!' : 'Cerberus mode deactivated');
       cheatBuffer = '';
     } else if (cheatBuffer.endsWith('hard')){
-      // Toggle Hard mode.  This scrambles or restores the case order
-      // used for the bridges.  Start a new run so the new order
-      // takes effect immediately and update the legend accordingly.
-      hardModeActive = !hardModeActive;
-      if(hardModeActive){
-        // Generate a random permutation of the ten case indices (0..9).
-        caseOrder = DEFAULT_CASE_ORDER.slice();
-        for(let i = caseOrder.length - 1; i > 0; i--){
-          const j = Math.floor(Math.random() * (i + 1));
-          [caseOrder[i], caseOrder[j]] = [caseOrder[j], caseOrder[i]];
-        }
-        showToast('Hard mode activated!');
-      } else {
-        // Restore the default order
-        caseOrder = DEFAULT_CASE_ORDER.slice();
-        showToast('Hard mode deactivated');
-      }
-      // Update the legend to reflect the current case order
-      if(typeof updateCaseOrderLegend === 'function') updateCaseOrderLegend();
-      // Start a new run to apply the new order and update flags
-      startRun();
-      cheatBuffer = '';
-    }
-  }
-});
+  // Toggle Hard mode. Scramble singular (0..4) independently from plural (5..9)
+  // so Sg never mixes with Pl.
+  hardModeActive = !hardModeActive;
 
-// click confirm on row
+  if (hardModeActive){
+    // Fisher–Yates on each half
+    const singular = [0,1,2,3,4];
+    const plural   = [5,6,7,8,9];
+
+    for (let i = singular.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [singular[i], singular[j]] = [singular[j], singular[i]];
+    }
+    for (let i = plural.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [plural[i], plural[j]] = [plural[j], plural[i]];
+    }
+
+    caseOrder = singular.concat(plural);
+    showToast('Hard mode activated (singular/plural scrambled separately)!');
+  } else {
+    caseOrder = DEFAULT_CASE_ORDER.slice();
+    showToast('Hard mode deactivated');
+  }
+
+  if (typeof updateCaseOrderLegend === 'function') updateCaseOrderLegend();
+  startRun();
+  cheatBuffer = '';
+  }
+}
+});// click confirm on row
 canvas.addEventListener("click", (e)=>{
   if(phase!==PHASE_BRIDGES || !bridge) return;
   const rect = canvas.getBoundingClientRect();
