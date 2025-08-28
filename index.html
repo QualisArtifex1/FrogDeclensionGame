@@ -92,6 +92,43 @@
 <div class="toast" id="toast"></div>
 
 <script>
+
+/* ==== DIAGNOSTIC LAYER: draws any runtime error on the canvas and logs details ==== */
+(function(){
+  function drawErrorOverlay(msg, stack){
+    try{
+      var c = document.getElementById('canvas');
+      if(!c){ return; }
+      var x = c.getContext('2d');
+      x.save();
+      x.setTransform(1,0,0,1,0,0);
+      x.globalAlpha = 0.92;
+      x.fillStyle = '#102a1f';
+      x.fillRect(0,0,c.width,c.height);
+      x.globalAlpha = 1;
+      x.fillStyle = '#ffefef';
+      x.font = '16px monospace';
+      var lines = (msg + (stack? '\n' + stack : '')).split('\n').slice(0,16);
+      var y = 40;
+      x.fillText('⚠ Runtime error — see Console for details', 20, 20);
+      for(var i=0;i<lines.length;i++){
+        x.fillText(lines[i].slice(0,120), 20, y);
+        y += 20;
+      }
+      x.restore();
+    }catch(_){/*no-op*/}
+  }
+  function handleError(ev){
+    var msg = (ev && ev.message) ? ev.message : String(ev);
+    var stack = ev && ev.error && ev.error.stack ? ev.error.stack : (ev && ev.reason && ev.reason.stack ? ev.reason.stack : '');
+    console.error('[DIAG] Runtime error:', ev);
+    drawErrorOverlay(msg, stack);
+  }
+  window.addEventListener('error', handleError);
+  window.addEventListener('unhandledrejection', handleError);
+  console.log('[DIAG] Diagnostic layer installed');
+})();
+/* ==== END DIAGNOSTIC LAYER ==== */
 /***********************
  * COLORS (no CSS vars; only double quotes)
  ***********************/
@@ -164,6 +201,8 @@ let currentRunJake = false;
 // permuted at the start of the run and displayed in the legend.  Runs
 // completed in Hard mode unlock special skins.
 let hardModeActive = false;
+
+let cerberusModeActive = false;
 // Preserve the default order of cases (row indices 0..9).  This is used
 // to restore the standard order when Hard mode is deactivated.
 const DEFAULT_CASE_ORDER = Array.from({length: 10}, (_, i) => i);
@@ -876,7 +915,11 @@ window.addEventListener('keydown', (e) => {
       // (currentRunJake/currentRunHard) update correctly.
       startRun();
       cheatBuffer = '';
-    } else if(cheatBuffer.endsWith('hard')){
+    } else if (cheatBuffer.endsWith('cerberus')) {
+      cerberusModeActive = !cerberusModeActive;
+      showToast(cerberusModeActive ? 'Cerberus mode activated!' : 'Cerberus mode deactivated');
+      cheatBuffer = '';
+    } else if (cheatBuffer.endsWith('hard')){
       // Toggle Hard mode.  This scrambles or restores the case order
       // used for the bridges.  Start a new run so the new order
       // takes effect immediately and update the legend accordingly.
@@ -1859,6 +1902,68 @@ function drawAccessoryOnFrog(f){
   }
 }
 
+// Draw two side frog-like heads (left/right). Draw using the current fillStyle set by caller.
+// 'base' is a size reference (e.g., baseX for bridge frog; f.r for meadow frogs).
+function drawCerberusHeads(base){
+  const size = Math.max(12, base * 0.33);
+  const y = -base * 0.40;
+  const xOff = base * 0.95;
+
+  for(const dir of [-1, 1]){
+    const cx = dir * xOff;
+
+    ctx.save();
+    ctx.translate(cx, y);
+    ctx.rotate(dir * Math.PI * 0.06);
+
+    const w = size * 1.25;
+    const h = size * 0.90;
+
+    ctx.beginPath();
+    ctx.ellipse(0, 0, w, h, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = Math.max(1, base * 0.05);
+    ctx.stroke();
+
+    const eyeY = -h * 0.25;
+    const eyeX = w * 0.38;
+    const eyeR = Math.max(1.5, size * 0.18);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(-eyeX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.arc( eyeX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#000';
+    const pupilR = Math.max(1, eyeR * 0.45);
+    ctx.beginPath();
+    ctx.arc(-eyeX, eyeY, pupilR, 0, Math.PI * 2);
+    ctx.arc( eyeX, eyeY, pupilR, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    const nostY = h * 0.05;
+    const nostX = w * 0.20;
+    const nostR = Math.max(0.8, size * 0.06);
+    ctx.beginPath();
+    ctx.arc(-nostX, nostY, nostR, 0, Math.PI * 2);
+    ctx.arc( nostX, nostY, nostR, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = Math.max(1, base * 0.04);
+    ctx.beginPath();
+    ctx.arc(0, h * 0.22, w * 0.60, 0, Math.PI);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+}
+
+
+
 /***********************
  * STARFIELD: sparkling night sky
  *
@@ -2456,7 +2561,15 @@ function drawFrogEntity(f){
     sy = -sy;
   }
   ctx.save(); ctx.translate(f.x, f.y - hopLift); ctx.scale(sx,sy);
-  ctx.globalAlpha=0.25; ctx.fillStyle="#000"; ctx.beginPath(); ctx.ellipse(0,12,18,6,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.globalAlpha=0.25; ctx.fillStyle="#000"; 
+  // Cerberus side heads for meadow player frog (draw behind main body by painting first)
+  if (cerberusModeActive && !f.ai) {
+    ctx.save();
+    ctx.fillStyle = f.color || '#3aa34a';
+    drawCerberusHeads(f.r || 20);
+    ctx.restore();
+  }
+ctx.beginPath(); ctx.ellipse(0,12,18,6,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
   ctx.strokeStyle="#2b7c35"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-14,8); ctx.lineTo(-20,16); ctx.moveTo(14,8); ctx.lineTo(20,16); ctx.stroke();
   // Determine body fill: special skins > rainbow > plain colour
   if (f.skin === 'metalSkin') {
@@ -2813,7 +2926,15 @@ const baseY = Math.round(frogBase * 0.73);
   } else {
     ctx.fillStyle = frog.color;
   }
-  ctx.beginPath();
+  
+  // Cerberus side heads for bridge frog (draw behind main body by painting first)
+  if (cerberusModeActive) {
+    ctx.save();
+    ctx.fillStyle = frog.color || '#3aa34a';
+    drawCerberusHeads(baseX);
+    ctx.restore();
+  }
+ctx.beginPath();
   ctx.ellipse(0, 0, baseX, baseY, 0, 0, Math.PI * 2);
   ctx.fill();
   // simple pattern on bridge frog
@@ -3008,7 +3129,7 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
   @keyframes ember_flicker{0%,100% { filter: brightness(1);} 50%{ filter: brightness(1.4);} }
   @keyframes rock_fall{ to { transform: translateY(110vh) rotate(calc(var(--rot,0deg) + 540deg)); } }
   #ciceroNPC{ position:fixed; display:none; z-index:2147483000; pointer-events:none; text-align:center; font-family:Cinzel, serif; }
-  #ciceroNPC .frog{ font-size:28px; }
+  #ciceroNPC .frog{ font-size:56px; }
   #ciceroNPC .bubble{ position:absolute; left:40px; bottom:30px; transform-origin:left bottom; background:#fff; border:2px solid #000; padding:8px 12px; border-radius:10px; font-size:16px; box-shadow:0 2px 8px rgba(0,0,0,.25); opacity:0; transform:scale(.9); transition:opacity .2s ease, transform .2s ease; white-space:nowrap; }
   #ciceroNPC.show .bubble{ opacity:1; transform:scale(1); }
   #lavaVeil{ position:fixed; pointer-events:none; z-index:2147482000; opacity:.65; mix-blend-mode: color; background: linear-gradient(0deg, #a51600 0%, #c51a00 50%, #8a1200 100%); border-radius:6px; transition:opacity .25s ease; }
