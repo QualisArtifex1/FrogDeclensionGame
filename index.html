@@ -2957,14 +2957,16 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
 
 <script>
 
-/* === Easter Egg Registry (inline v14) ===
-   Built-ins: "hard", "vesuvius"(toggle), "orator"(toggle), "speculum"(mirror toggle), "retro mode"(Janus pixel mode toggle)
-   Aliases: "retro" (kept for convenience)
+/* === Easter Egg Registry (inline v16) ===
+   Built-ins: "hard", "vesuvius"(toggle), "orator"(toggle), "speculum"(mirror toggle),
+              "retro mode"(Janus pixel mode toggle + phosphor by default),
+              "phosphor"(green CRT toggle)
+   Aliases: "retro", "phosphorus"
 */
 (function () {
   const DOC = document;
   const WIN = window;
-  if (WIN.EasterEggs && WIN.EasterEggs._version === 14) return;
+  if (WIN.EasterEggs && WIN.EasterEggs._version === 16) return;
 
   function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
   function toast(msg){ if(typeof WIN.showToast==="function") WIN.showToast(msg); else console.log("[Toast]", msg); }
@@ -2975,10 +2977,21 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
   function unregister(code){ REGISTRY.delete(String(code||"").toLowerCase().trim()); }
   function setEnabled(v){ enabled=!!v; }
 
-  let buffer=""; DOC.addEventListener("keydown",(e)=>{ if(!enabled) return; const tag=(e.target&&e.target.tagName)||""; if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"||e.isComposing) return;
-    if(e.key && e.key.length===1){ buffer+=e.key.toLowerCase(); if(buffer.length>64) buffer=buffer.slice(-64);
-      for(const [code,handler] of REGISTRY.entries()){ if(buffer.endsWith(code)){ try{ handler(); }catch(err){ console.error("EasterEgg error",code,err); } buffer=""; break; } } }
-    else if (e.key==="Escape"){ buffer=""; } });
+  let buffer=""; DOC.addEventListener("keydown",(e)=>{
+    if(!enabled) return;
+    const tag=(e.target&&e.target.tagName)||"";
+    if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"||e.isComposing) return;
+    if(e.key && e.key.length===1){
+      buffer+=e.key.toLowerCase();
+      if(buffer.length>64) buffer=buffer.slice(-64);
+      for(const [code,handler] of REGISTRY.entries()){
+        if(buffer.endsWith(code)){
+          try{ handler(); }catch(err){ console.error("EasterEgg error",code,err); }
+          buffer=""; break;
+        }
+      }
+    } else if (e.key==="Escape"){ buffer=""; }
+  });
 
   const STYLE_CSS = `
   .ash{position:fixed;top:-24px;width:8px;height:8px;background:#666;border-radius:50%;opacity:.9;pointer-events:none;animation:egg_fall linear forwards}
@@ -3003,9 +3016,20 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
   /* Retro overlay */
   #retroCanvas{ position:fixed; z-index:2147482600; pointer-events:none; image-rendering: pixelated; }
   #retroScan{ position:fixed; z-index:2147482650; pointer-events:none; background:
-      repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, rgba(0,0,0,0) 1px 3px);
-      mix-blend-mode: multiply; opacity:.35; }
+      repeating-linear-gradient(0deg, rgba(255,255,255,.12) 0 1px, rgba(0,0,0,0) 1px 3px);
+      mix-blend-mode: multiply; opacity:.38; animation: scanRoll var(--scan-speed, 6s) linear infinite; background-size: 100% 4px; }
   #retroGrid{ position:fixed; z-index:2147482625; pointer-events:none; }
+  @keyframes scanRoll {
+    from { background-position: 0 0; }
+    to   { background-position: 0 100%; }
+  }
+  /* Phosphor overlays */
+  #phosphorTint{ position:fixed; z-index:2147482660; pointer-events:none; background:#00ff66; opacity:.18; mix-blend-mode: color; display:none; }
+  #phosphorGlow{ position:fixed; z-index:2147482665; pointer-events:none; display:none;
+    background: radial-gradient(60% 50% at 50% 50%, rgba(0,255,120,.30), rgba(0,128,64,.12) 60%, rgba(0,0,0,0) 70%);
+    mix-blend-mode: screen; }
+  #phosphorVignette{ position:fixed; z-index:2147482670; pointer-events:none; display:none;
+    background: radial-gradient(100% 100% at 50% 50%, rgba(0,0,0,0) 62%, rgba(0,0,0,.38) 100%); }
   `;
   function ensureStyle(){ if(document.getElementById("egg-style")) return; const el=document.createElement("style"); el.id="egg-style"; el.textContent=STYLE_CSS; document.head.appendChild(el); }
 
@@ -3070,21 +3094,34 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
   function stopMirror(){ document.body.classList.remove("mirror-mode"); mirrorOn=false; toast("🪞 Speculum: mirror off"); }
   function toggleMirror(){ if(mirrorOn) stopMirror(); else startMirror(); }
 
-  // ----- Retro (Janus) with palette quantization -----
+  // ----- Retro (Janus) with palette + HiDPI -----
   let retroOn=false, retroCanvas=null, retroCtx=null, retroTmp=null, retroScan=null, retroGrid=null, retroRAF=null;
-  let retroPixelSize = 7; // chunkier default
-  // NES-like 16-color palette (approximate sRGB)
-  let retroPalette = [
+  let retroPixelSize = 7;
+  let retroHiDPI = true; // new: scale overlay to devicePixelRatio for crispness
+  // NES-like 16-color palette (default)
+  let retroPaletteDefault = [
     [0,0,0],[29,43,83],[0,135,81],[0,87,132],[126,37,83],[76,30,115],
     [171,82,54],[116,47,41],[223,113,38],[247,226,107],[255,255,255],
     [195,195,199],[155,173,183],[48,96,130],[91,110,225],[99,155,255]
   ];
+  let retroPalette = retroPaletteDefault.slice();
+
+  // Phosphor (green CRT)
+  let phosphorOn = false;
+  let retroPaletteBeforePhosphor = null;
+  let phosphorTint=null, phosphorGlow=null, phosphorVignette=null;
+  const phosphorPalette = [[0,8,0],[16,48,16],[32,96,32],[64,140,64],[120,200,120],[200,255,200]];
+
   function ensureRetroLayer(){
     if (retroCanvas) return retroCanvas;
     retroCanvas = document.createElement("canvas"); retroCanvas.id = "retroCanvas";
     retroScan = document.createElement("div"); retroScan.id = "retroScan";
     retroGrid = document.createElement("canvas"); retroGrid.id = "retroGrid";
+    phosphorTint = document.createElement("div"); phosphorTint.id="phosphorTint";
+    phosphorGlow = document.createElement("div"); phosphorGlow.id="phosphorGlow";
+    phosphorVignette = document.createElement("div"); phosphorVignette.id="phosphorVignette";
     document.body.appendChild(retroCanvas); document.body.appendChild(retroGrid); document.body.appendChild(retroScan);
+    document.body.appendChild(phosphorTint); document.body.appendChild(phosphorGlow); document.body.appendChild(phosphorVignette);
     retroCtx = retroCanvas.getContext("2d"); retroCtx.imageSmoothingEnabled = false;
     retroTmp = document.createElement("canvas");
     positionRetroLayer();
@@ -3096,23 +3133,32 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
   function positionRetroLayer(){
     if (!retroCanvas) return;
     const rect = boardRect();
+    const dpr = retroHiDPI ? (window.devicePixelRatio || 1) : 1;
     const assign = (el) => { el.style.left = rect.left + "px"; el.style.top = rect.top + "px"; el.style.width = rect.width + "px"; el.style.height = rect.height + "px"; };
     assign(retroCanvas); assign(retroScan); assign(retroGrid);
-    retroCanvas.width  = Math.max(1, Math.floor(rect.width));
-    retroCanvas.height = Math.max(1, Math.floor(rect.height));
+    if (phosphorTint) assign(phosphorTint);
+    if (phosphorGlow) assign(phosphorGlow);
+    if (phosphorVignette) assign(phosphorVignette);
+    // pixel buffers scale to DPR for sharpness
+    retroCanvas.width  = Math.max(1, Math.round(rect.width  * dpr));
+    retroCanvas.height = Math.max(1, Math.round(rect.height * dpr));
     retroGrid.width  = retroCanvas.width; retroGrid.height = retroCanvas.height;
     drawGrid();
   }
   function drawGrid(){
     if (!retroGrid) return;
-    const g = retroGrid.getContext("2d"); g.clearRect(0,0,retroGrid.width, retroGrid.height);
+    const g = retroGrid.getContext("2d");
+    const dpr = retroHiDPI ? (window.devicePixelRatio || 1) : 1;
+    g.setTransform(dpr,0,0,dpr,0,0);
+    g.clearRect(0,0,retroGrid.width/dpr, retroGrid.height/dpr);
     const step = Math.max(4, retroPixelSize);
     g.imageSmoothingEnabled = false;
     g.globalAlpha = 0.12;
     g.strokeStyle = "rgba(0,0,0,0.7)";
     g.beginPath();
-    for(let x=0;x<retroGrid.width;x+=step){ g.moveTo(x+0.5,0); g.lineTo(x+0.5,retroGrid.height); }
-    for(let y=0;y<retroGrid.height;y+=step){ g.moveTo(0,y+0.5); g.lineTo(retroGrid.width,y+0.5); }
+    const w = retroGrid.width/dpr, h = retroGrid.height/dpr;
+    for(let x=0;x<w;x+=step){ g.moveTo(x+0.5,0); g.lineTo(x+0.5,h); }
+    for(let y=0;y<h;y+=step){ g.moveTo(0,y+0.5); g.lineTo(w,y+0.5); }
     g.stroke();
     g.globalAlpha = 1;
   }
@@ -3130,7 +3176,6 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
     for(let i=0;i<d.length;i+=4){
       const q = nearestPalColor(d[i], d[i+1], d[i+2]);
       d[i]=q[0]; d[i+1]=q[1]; d[i+2]=q[2];
-      // retain alpha
     }
     return imgData;
   }
@@ -3139,9 +3184,12 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
     const src = largestCanvas();
     if (src && retroCanvas){
       const rect = boardRect();
+      const dpr = retroHiDPI ? (window.devicePixelRatio || 1) : 1;
       const px = Math.max(2, retroPixelSize);
+      // The game's canvas is typically in device pixels; relate to CSS px
       const scaleX = src.width / rect.width;
       const scaleY = src.height / rect.height;
+      // Downsample size in source pixels
       const downW = Math.max(1, Math.floor(src.width  / (px*scaleX)));
       const downH = Math.max(1, Math.floor(src.height / (px*scaleY)));
       if (retroTmp.width !== downW || retroTmp.height !== downH){ retroTmp.width = downW; retroTmp.height = downH; }
@@ -3153,7 +3201,7 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
       let id = tctx.getImageData(0,0,downW,downH);
       id = quantizeImageData(id);
       tctx.putImageData(id, 0,0);
-      // upscale to overlay
+      // upscale to overlay buffer (in device pixels)
       retroCtx.imageSmoothingEnabled = false;
       retroCtx.clearRect(0,0, retroCanvas.width, retroCanvas.height);
       retroCtx.drawImage(retroTmp, 0,0, downW, downH, 0,0, retroCanvas.width, retroCanvas.height);
@@ -3171,7 +3219,9 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
     positionRetroLayer();
     drawGrid();
     retroStep();
-    toast("🕹 Janus/Retro MODE: pixel palette ON");
+    // New: phosphor ON by default when retro starts
+    if (!phosphorOn) startPhosphor();
+    toast("🕹 Janus/Retro MODE: pixel palette ON + phosphor");
   }
   function stopRetro(){
     retroOn = false;
@@ -3179,9 +3229,34 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
     if (retroCanvas) retroCanvas.style.display="none";
     if (retroScan) retroScan.style.display="none";
     if (retroGrid) retroGrid.style.display="none";
+    // Hide phosphor too
+    if (phosphorOn) stopPhosphor();
     toast("🕹 Janus/Retro MODE: off");
   }
   function toggleRetro(){ if(retroOn) stopRetro(); else startRetro(); }
+
+  // ----- Phosphor (green CRT) -----
+  function startPhosphor(){
+    ensureStyle(); ensureRetroLayer();
+    if (!retroOn) startRetro();
+    if (phosphorOn) return;
+    retroPaletteBeforePhosphor = retroPalette.slice();
+    retroPalette = phosphorPalette.slice();
+    phosphorTint.style.display="block";
+    phosphorGlow.style.display="block";
+    phosphorVignette.style.display="block";
+    phosphorTint.style.opacity = ".20";
+    phosphorOn = true;
+  }
+  function stopPhosphor(){
+    if (!phosphorOn) return;
+    retroPalette = retroPaletteBeforePhosphor ? retroPaletteBeforePhosphor.slice() : retroPaletteDefault.slice();
+    phosphorTint.style.display="none";
+    phosphorGlow.style.display="none";
+    phosphorVignette.style.display="none";
+    phosphorOn = false;
+  }
+  function togglePhosphor(){ if(phosphorOn) stopPhosphor(); else startPhosphor(); }
 
   // Register built-ins
   register("hard", activateHardMode);
@@ -3190,6 +3265,8 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
   register("speculum", toggleMirror);
   register("retro mode", toggleRetro); // primary trigger
   register("retro", toggleRetro);      // alias
+  register("phosphor", togglePhosphor);
+  register("phosphorus", togglePhosphor);
 
   // Public API
   window.EasterEggs = {
@@ -3198,6 +3275,7 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
     activateCicero, deactivateCicero, toggleCicero,
     startMirror, stopMirror, toggleMirror,
     startRetro, stopRetro, toggleRetro,
+    startPhosphor, stopPhosphor, togglePhosphor,
     setPositionProvider(fn){ if(typeof fn==='function'){ window.getFrogPosition=fn; toast('📍 Orator position provider set'); } },
     setLavaBand(topFrac,bottomFrac){ if(typeof topFrac==='number'&&typeof bottomFrac==='number'){ lavaBand.top=topFrac; lavaBand.bottom=bottomFrac; positionLavaVeil(); toast('🌋 Lava band updated'); } },
     setRetroPixelSize(v){ if(typeof v==='number' && v>1){ retroPixelSize = v; drawGrid(); toast('🕹 Retro pixel size = '+v); } },
@@ -3205,14 +3283,25 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
       const presets = {
         nes: [[0,0,0],[29,43,83],[0,135,81],[0,87,132],[126,37,83],[76,30,115],[171,82,54],[116,47,41],[223,113,38],[247,226,107],[255,255,255],[195,195,199],[155,173,183],[48,96,130],[91,110,225],[99,155,255]],
         cga: [[0,0,0],[170,170,170],[255,255,255],[0,170,170],[170,0,170],[170,170,0],[0,255,255],[255,0,255],[255,255,0],[0,170,0],[0,0,170],[170,0,0]],
-        gameboy: [[15,56,15],[48,98,48],[139,172,15],[155,188,15],[222,248,222],[0,0,0]]
+        gameboy: [[15,56,15],[48,98,48],[139,172,15],[155,188,15],[222,248,222],[0,0,0]],
+        phosphor: [[0,8,0],[16,48,16],[32,96,32],[64,140,64],[120,200,120],[200,255,200]]
       };
       if (presets[name]){ retroPalette = presets[name]; toast('🕹 Retro palette: '+name); }
       else { toast('🕹 Unknown palette'); }
     },
-    _version: 14
+    setScanSpeed(seconds){
+      const s = Number(seconds)||0;
+      const el = document.getElementById('retroScan');
+      if (el){ el.style.setProperty('--scan-speed', (s>0? s: 6) + 's'); toast('📺 Scanline speed: '+(s>0? s:6)+'s'); }
+    },
+    setRetroHiDPI(flag){
+      retroHiDPI = !!flag;
+      positionRetroLayer();
+      toast('🖥 HiDPI overlay: '+(retroHiDPI?'ON':'OFF'));
+    },
+    _version: 16
   };
-  console.log("[EasterEggs] Registry v14 installed.");
+  console.log("[EasterEggs] Registry v16 installed.");
 })();
 
 </script>
