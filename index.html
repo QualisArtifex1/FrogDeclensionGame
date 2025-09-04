@@ -3343,6 +3343,173 @@ document.addEventListener("visibilitychange", ()=>{ if(document.hidden && ac.sta
 window.addEventListener("error", (e)=>{   console.error("Window error:", e.error || e.message || e);   showToast("Error: " + (e.message || "Unknown")); }); window.addEventListener("unhandledrejection", (e)=>{   console.error("Unhandled promise rejection:", e.reason);   const msg = e.reason && (e.reason.message || String(e.reason));   showToast("Error: " + (msg || "Promise rejection")); });
 
 </script>
+<!-- Login overlay, teacher dashboard, and logout button -->
+<div id="loginOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:10000;">
+  <div id="loginBox" style="background:#fff; padding:20px; border-radius:8px; display:flex; flex-direction:column; gap:10px; width:320px; text-align:center;">
+    <h2>Welcome to Latin Frogger</h2>
+    <input id="loginEmail" type="email" placeholder="Email" style="padding:8px;">
+    <input id="loginPassword" type="password" placeholder="Password" style="padding:8px;">
+    <button id="signInBtn" style="padding:8px;">Sign In</button>
+    <button id="signUpBtn" style="padding:8px;">Sign Up</button>
+    <button id="googleSignInBtn" style="padding:8px;">Sign in with Google</button>
+    <button id="guestBtn" style="padding:8px;">Play as Guest</button>
+    <div id="loginError" style="color:red;"></div>
+  </div>
+</div>
+<button id="teacherDashBtn" style="position:fixed; top:10px; right:10px; z-index:10001; display:none;">Dashboard</button>
+<button id="logoutBtn" style="position:fixed; top:10px; right:110px; z-index:10001; display:none;">Logout</button>
+<div id="teacherOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:10000;">
+  <div style="background:#fff; padding:20px; border-radius:8px; width:80%; max-height:80%; overflow:auto;">
+    <h2>Teacher Dashboard</h2>
+    <table id="dashboardTable" border="1" style="width:100%; border-collapse:collapse;">
+      <tr><th>User</th><th>Best Time</th><th>Unlocks</th><th>Easter Eggs</th></tr>
+    </table>
+    <button id="closeDashboardBtn" style="margin-top:10px;">Close</button>
+  </div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script>
+  // Firebase configuration for your Latin Frogger project
+  var firebaseConfig = {
+    apiKey: "AIzaSyAYZnkbWzGIp2EY0EvJ4-_l943xJG2KXjw",
+    authDomain: "latin-frogger.firebaseapp.com",
+    projectId: "latin-frogger",
+    storageBucket: "latin-frogger.firebasestorage.app",
+    messagingSenderId: "1090179387353",
+    appId: "1:1090179387353:web:e72e9c98b85c327b9953c8",
+    measurementId: "G-STJZLX2SZL"
+  };
+  // Initialize Firebase
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  const provider = new firebase.auth.GoogleAuthProvider();
+  // Teacher email constant for dashboard access
+  const teacherEmail = "acornish@gmail.com";
+  let isGuest = true;
+  let currentUser = null;
+  function showLogin(){ document.getElementById("loginOverlay").style.display = "flex"; }
+  function hideLogin(){ document.getElementById("loginOverlay").style.display = "none"; }
+  function showDashboard(){ document.getElementById("teacherOverlay").style.display = "flex"; }
+  function hideDashboard(){ document.getElementById("teacherOverlay").style.display = "none"; }
+  // Prevent game keybindings from intercepting login input
+  ["loginEmail","loginPassword"].forEach(function(id){
+    const el = document.getElementById(id);
+    el.addEventListener("keydown", function(e){
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    });
+  });
+  // Sign in with email/password
+  document.getElementById("signInBtn").addEventListener("click", function(){
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    auth.signInWithEmailAndPassword(email, password).catch(function(error){
+      document.getElementById("loginError").innerText = error.message;
+    });
+  });
+  // Sign up with email/password
+  document.getElementById("signUpBtn").addEventListener("click", function(){
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    auth.createUserWithEmailAndPassword(email, password).catch(function(error){
+      document.getElementById("loginError").innerText = error.message;
+    });
+  });
+  // Google sign in: try popup, fallback to redirect
+  document.getElementById("googleSignInBtn").addEventListener("click", function(){
+    auth.signInWithPopup(provider).catch(function(err){
+      if (err.code === "auth/popup-blocked" || err.code === "auth/cancelled-popup-request" || err.code === "auth/popup-closed-by-user") {
+        auth.signInWithRedirect(provider);
+      } else {
+        document.getElementById("loginError").innerText = err.message;
+      }
+    });
+  });
+  // Play as guest just hides the login overlay
+  document.getElementById("guestBtn").addEventListener("click", function(){
+    isGuest = true;
+    hideLogin();
+  });
+  // Teacher dashboard button loads data from Firestore
+  document.getElementById("teacherDashBtn").addEventListener("click", function(){
+    db.collection("users").get().then(function(snapshot){
+      const table = document.getElementById("dashboardTable");
+      table.innerHTML = "<tr><th>User</th><th>Best Time</th><th>Unlocks</th><th>Easter Eggs</th></tr>";
+      snapshot.forEach(function(doc){
+        const data = doc.data();
+        const tr = document.createElement("tr");
+        tr.innerHTML = "<td>"+ (data.email || data.username || "") +"</td><td>"+ (data.bestTime || "") +"</td><td>"+ (data.unlocks || "") +"</td><td>"+ (data.easterEggs || "") +"</td>";
+        table.appendChild(tr);
+      });
+      showDashboard();
+    }).catch(function(error){ console.error("Dashboard error", error); });
+  });
+  // Close dashboard button
+  document.getElementById("closeDashboardBtn").addEventListener("click", hideDashboard);
+  // Logout button
+  document.getElementById("logoutBtn").addEventListener("click", function(){
+    auth.signOut().then(function(){
+      currentUser = null;
+      isGuest = false;
+      document.getElementById("teacherDashBtn").style.display = "none";
+      document.getElementById("logoutBtn").style.display = "none";
+      hideDashboard();
+      showLogin();
+    }).catch(function(error){
+      console.error("Logout failed", error);
+    });
+  });
+  // Handle redirect result when coming back from Google sign-in
+  auth.getRedirectResult().then(function(result){
+    if (result && result.user) {
+      currentUser = result.user;
+      isGuest = false;
+    }
+  }).catch(function(error){
+    if (error && error.message) {
+      document.getElementById("loginError").innerText = error.message;
+    }
+  });
+  // Auth state listener
+  auth.onAuthStateChanged(function(user){
+    if (user) {
+      currentUser = user;
+      isGuest = false;
+      hideLogin();
+      document.getElementById("logoutBtn").style.display = "block";
+      if (user.email === teacherEmail) {
+        document.getElementById("teacherDashBtn").style.display = "block";
+      }
+    } else {
+      currentUser = null;
+      // Always show the login overlay if no user is signed in
+      showLogin();
+      document.getElementById("logoutBtn").style.display = "none";
+      document.getElementById("teacherDashBtn").style.display = "none";
+    }
+  });
+  // Show the login overlay on initial load if no one is signed in
+  if (!auth.currentUser) {
+    showLogin();
+  }
+  // updateUserStats writes to Firestore
+  window.updateUserStats = function(bestTime, unlocks, easterEggs){
+    if (isGuest || !currentUser) { return; }
+    db.collection("users").doc(currentUser.uid).set({
+      email: currentUser.email || "",
+      bestTime: bestTime,
+      unlocks: unlocks,
+      easterEggs: easterEggs
+    }, { merge: true }).catch(function(error){
+      console.error("Error updating stats", error);
+    });
+  };
+</script>
 
 <script>
 
@@ -3693,139 +3860,6 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
   console.log("[EasterEggs] Registry v16 installed.");
 })();
 
-</script>
-<!-- Login overlay and teacher dashboard -->
-<div id="loginOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:10000;">
-  <div id="loginBox" style="background:#fff; padding:20px; border-radius:8px; display:flex; flex-direction:column; gap:10px; width:320px; text-align:center;">
-    <h2>Welcome to Latin Frogger</h2>
-    <input id="loginEmail" type="email" placeholder="Email" style="padding:8px;">
-    <input id="loginPassword" type="password" placeholder="Password" style="padding:8px;">
-    <button id="signInBtn" style="padding:8px;">Sign In</button>
-    <button id="signUpBtn" style="padding:8px;">Sign Up</button>
-    <button id="googleSignInBtn" style="padding:8px;">Sign in with Google</button>
-    <button id="guestBtn" style="padding:8px;">Play as Guest</button>
-    <div id="loginError" style="color:red;"></div>
-  </div>
-</div>
-<button id="teacherDashBtn" style="position:fixed; top:10px; right:10px; z-index:10001; display:none;">Dashboard</button>
-<div id="teacherOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:10000;">
-  <div style="background:#fff; padding:20px; border-radius:8px; width:80%; max-height:80%; overflow:auto;">
-    <h2>Teacher Dashboard</h2>
-    <table id="dashboardTable" border="1" style="width:100%; border-collapse:collapse;">
-      <tr><th>User</th><th>Best Time</th><th>Unlocks</th><th>Easter Eggs</th></tr>
-    </table>
-    <button id="closeDashboardBtn" style="margin-top:10px;">Close</button>
-  </div>
-</div>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-<script>
-  // Firebase configuration (provided by user)
-  var firebaseConfig = {
-    apiKey: "AIzaSyAYZnkbWzGIp2EY0EvJ4-_l943xJG2KXjw",
-    authDomain: "latin-frogger.firebaseapp.com",
-    projectId: "latin-frogger",
-    storageBucket: "latin-frogger.firebasestorage.app",
-    messagingSenderId: "1090179387353",
-    appId: "1:1090179387353:web:e72e9c98b85c327b9953c8",
-    measurementId: "G-STJZLX2SZL"
-  };
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-  const provider = new firebase.auth.GoogleAuthProvider();
-  // Use teacher's real email address
-  const teacherEmail = "acornish@gmail.com";
-  let isGuest = true;
-  let currentUser = null;
-  function showLogin(){ document.getElementById("loginOverlay").style.display = "flex"; }
-  function hideLogin(){ document.getElementById("loginOverlay").style.display = "none"; }
-  function showDashboard(){ document.getElementById("teacherOverlay").style.display = "flex"; }
-  function hideDashboard(){ document.getElementById("teacherOverlay").style.display = "none"; }
-  // Prevent game keybindings from interfering while typing
-  ["loginEmail","loginPassword"].forEach(function(id){
-    const el = document.getElementById(id);
-    el.addEventListener("keydown", function(e){
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-    });
-  });
-  document.getElementById("signInBtn").addEventListener("click", function(){
-    const email = document.getElementById("loginEmail").value.trim();
-    const password = document.getElementById("loginPassword").value;
-    auth.signInWithEmailAndPassword(email, password).catch(function(error){
-      document.getElementById("loginError").innerText = error.message;
-    });
-  });
-  document.getElementById("signUpBtn").addEventListener("click", function(){
-    const email = document.getElementById("loginEmail").value.trim();
-    const password = document.getElementById("loginPassword").value;
-    auth.createUserWithEmailAndPassword(email, password).catch(function(error){
-      document.getElementById("loginError").innerText = error.message;
-    });
-  });
-  document.getElementById("googleSignInBtn").addEventListener("click", function(){
-    // Try popup first; fallback to redirect if blocked
-    auth.signInWithPopup(provider).catch(function(err){
-      if (err.code === "auth/popup-blocked" || err.code === "auth/cancelled-popup-request" || err.code === "auth/popup-closed-by-user") {
-        auth.signInWithRedirect(provider);
-      } else {
-        document.getElementById("loginError").innerText = err.message;
-      }
-    });
-  });
-  document.getElementById("guestBtn").addEventListener("click", function(){
-    isGuest = true;
-    hideLogin();
-  });
-  document.getElementById("teacherDashBtn").addEventListener("click", function(){
-    db.collection("users").get().then(function(snapshot){
-      const table = document.getElementById("dashboardTable");
-      table.innerHTML = "<tr><th>User</th><th>Best Time</th><th>Unlocks</th><th>Easter Eggs</th></tr>";
-      snapshot.forEach(function(doc){
-        const data = doc.data();
-        const tr = document.createElement("tr");
-        tr.innerHTML = "<td>"+ (data.email || data.username || "") +"</td><td>"+ (data.bestTime || "") +"</td><td>"+ (data.unlocks || "") +"</td><td>"+ (data.easterEggs || "") +"</td>";
-        table.appendChild(tr);
-      });
-      showDashboard();
-    }).catch(function(error){ console.error("Dashboard error", error); });
-  });
-  document.getElementById("closeDashboardBtn").addEventListener("click", hideDashboard);
-  auth.getRedirectResult().then(function(result){
-    if (result && result.user) {
-      currentUser = result.user;
-      isGuest = false;
-    }
-  }).catch(function(error){
-    if (error && error.message) {
-      document.getElementById("loginError").innerText = error.message;
-    }
-  });
-  auth.onAuthStateChanged(function(user){
-    if (user) {
-      currentUser = user;
-      isGuest = false;
-      hideLogin();
-      if (user.email === teacherEmail) {
-        document.getElementById("teacherDashBtn").style.display = "block";
-      }
-    } else {
-      if (!isGuest) { showLogin(); }
-    }
-  });
-  window.updateUserStats = function(bestTime, unlocks, easterEggs){
-    if (isGuest || !currentUser) { return; }
-    db.collection("users").doc(currentUser.uid).set({
-      email: currentUser.email || "",
-      bestTime: bestTime,
-      unlocks: unlocks,
-      easterEggs: easterEggs
-    }, { merge: true }).catch(function(error){ console.error("Error updating stats", error); });
-  };
 </script>
 </body>
 </html>
