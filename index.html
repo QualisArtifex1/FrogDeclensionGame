@@ -47,50 +47,6 @@
   .pill b{ font-weight:700; }                 /* keep emphasis readable */  
   .pill span{ white-space:nowrap; }           /* prevent wrapping */
 }
-
-/* Secret Hint Modals + Gallery */
-#hintModal, #hintGalleryModal{
-  position:absolute; inset:0; z-index:30;
-  display:none; align-items:center; justify-content:center;
-  background:rgba(0,0,0,0.35); backdrop-filter: blur(2px);
-}
-#hintModal .hint-card, #hintGalleryModal .hint-card{
-  width:min(620px, 92%);
-  background:rgba(255,255,255,0.98);
-  border:3px solid #cfe9ff;
-  border-radius:18px;
-  box-shadow:0 12px 32px rgba(0,0,0,.2);
-  padding:18px 20px;
-  color:#16324f;
-}
-#hintModal .hint-title, #hintGalleryModal .hint-title{
-  margin:0 0 8px 0; font-size:22px; font-weight:800;
-}
-#hintModal .hint-text{ margin:0 0 12px 0; font-size:16px; line-height:1.35; }
-#hintGalleryModal .hint-list{ list-style:none; padding:0; margin:8px 0 16px 0; }
-#hintGalleryModal .hint-list li{
-  margin:8px 0; padding:10px 12px; border-radius:12px;
-  background:#f5fbff; border:1px solid #dcefff;
-  display:flex; align-items:center; gap:10px;
-}
-#hintGalleryModal .hint-list li.locked{ opacity:0.6; background:#f3f3f3; border-color:#e5e5e5; }
-#hintGalleryModal .hint-list .badge{
-  display:inline-flex; align-items:center; justify-content:center;
-  width:24px; height:24px; border-radius:50%;
-  background:#16324f; color:#fff; font-weight:700; font-size:13px;
-}
-#hintGalleryModal .hint-list .text{ flex:1; }
-#hintModal .hint-actions, #hintGalleryModal .hint-actions{
-  display:flex; justify-content:flex-end; gap:8px;
-}
-#hintOkBtn, #hintCloseBtn{
-  background: linear-gradient(to bottom, #16324f, #0f2238);
-  color:white; border:none; border-radius:12px;
-  padding:10px 16px; font-weight:700; box-shadow:0 4px 0 rgba(0,0,0,.2);
-  cursor:pointer;
-}
-#hintOkBtn:hover, #hintCloseBtn:hover{ transform: translateY(-2px); box-shadow:0 6px 0 rgba(0,0,0,.2); }
-#hintOkBtn:active, #hintCloseBtn:active{ transform: translateY(1px); box-shadow:0 2px 0 rgba(0,0,0,.2); }
 </style>
 </head>
 <body>
@@ -103,35 +59,12 @@
       <span>Time <span id="time">0.0</span>s</span>
       <span>Best <span id="best">—</span></span>
     </div>
-    <button id="hintsBtn" title="See discovered secret words">Hints (<span id="hintsCount">0</span>/8)</button>
   </header>
   <canvas id="canvas"></canvas>
   <div id="winOverlay">
     <span class="time">Total Time: <span id="finalTime">0.0s</span></span>
     <button id="playAgainBtn">Play Again</button>
   </div>
-  <!-- Secret Hint Modal -->
-  <div id="hintModal" style="display:none;">
-    <div class="hint-card">
-      <h2 class="hint-title">A Curious Thought…</h2>
-      <p id="hintText" class="hint-text"></p>
-      <div class="hint-actions">
-        <button id="hintOkBtn" type="button">Got it</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Hints Gallery Modal -->
-  <div id="hintGalleryModal" style="display:none;">
-    <div class="hint-card">
-      <h2 class="hint-title">Secrets Discovered <span id="hintProgress" style="font-weight:700;"></span></h2>
-      <ul id="hintList" class="hint-list"></ul>
-      <div class="hint-actions">
-        <button id="hintCloseBtn" type="button">Close</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Accessory selection overlay.  This appears at the start of a new run
        when multiple accessories are available.  Players choose which
        unlocked item (or none) to equip for the coming run.  The overlay
@@ -144,6 +77,29 @@
       <button id="accConfirmBtn" style="background: linear-gradient(to bottom, #16324f, #0f2238); color:white; border:none; border-radius:12px; padding:10px 18px; font-weight:700; box-shadow:0 4px 0 rgba(0,0,0,.2); cursor:pointer;">Start</button>
     </div>
   </div>
+  <!-- Practice mode selection overlay.  When practice mode is toggled on,
+       this modal appears allowing players to select which declensions
+       (bridge levels) and grammatical cases (rows) they know.  Rows
+       not selected will be covered and skipped, and declensions not
+       selected will be omitted from the run. -->
+  <div id="practiceOverlay" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; z-index:26; justify-content:center; align-items:center;">
+    <div style="background:rgba(255,255,255,0.98); border:3px solid #cfe9ff; border-radius:18px; padding:20px 24px; max-width:420px; width:90%; box-shadow:0 12px 32px rgba(0,0,0,.2); text-align:center; overflow-y:auto; max-height:90vh;">
+      <h2 style="margin:0 0 12px 0; font-size:22px; color:#16324f;">Practice Mode</h2>
+      <p style="margin:0 0 12px 0; font-size:14px; color:#35516b;">Select the declensions you want to practice and the cases you know.  Unchecked items will be skipped.</p>
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <div>
+          <h3 style="margin:4px 0 6px 0; font-size:16px; color:#16324f;">Declensions</h3>
+          <div id="practiceDeclensionOptions" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"></div>
+        </div>
+        <div>
+          <h3 style="margin:4px 0 6px 0; font-size:16px; color:#16324f;">Cases</h3>
+          <div id="practiceCaseOptions" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"></div>
+        </div>
+      </div>
+      <button id="practiceConfirmBtn" style="margin-top:16px; background: linear-gradient(to bottom, #16324f, #0f2238); color:white; border:none; border-radius:12px; padding:10px 18px; font-weight:700; box-shadow:0 4px 0 rgba(0,0,0,.2); cursor:pointer;">Start Practice</button>
+    </div>
+  </div>
+
   <footer>
     <div class="legend">
       <span class="tag">Left/Right choose a tile — <b>Enter</b> jumps</span>
@@ -153,6 +109,11 @@
     <div>
       <button id="restartBtn">Restart Run</button>
       <button id="clearUnlocksBtn">Reset Unlocks</button>
+      <!-- Practice mode toggle button.  When enabled, the game presents
+           a setup screen allowing players to choose which declensions
+           (levels) and cases (rows) they wish to practice.  When
+           disabled, the game runs normally. -->
+      <button id="practiceBtn">Practice Mode</button>
     </div>
   </footer>
 </div>
@@ -840,6 +801,166 @@ document.getElementById('clearUnlocksBtn').addEventListener('click', () => {
     phase = PHASE_BRIDGES;
     prepareNewRun();
   } catch(err){ console.error('Error resetting unlocks', err); }
+});
+
+/*
+ * === Practice Mode Setup ===
+ *
+ * Practice mode allows players to tailor their runs by selecting which
+ * declensions (levels) and grammatical cases (rows) they wish to practise.
+ * When practice mode is active only the selected declensions are used
+ * and any unselected cases are covered and automatically skipped by
+ * the frog.  Unlocks and achievements persist across practice mode.
+ */
+let practiceMode = false;
+let practiceCases = Array(10).fill(true);      // whether each case (0..9) is enabled
+let practiceDeclensions = Array(8).fill(true); // whether each declension (0..7) is enabled
+let practiceLevelIndices = [];                 // maps practice level index to actual declension index
+const CASE_LABELS = [
+  "Nom. Sg","Gen. Sg","Dat. Sg","Acc. Sg","Abl. Sg",
+  "Nom. Pl","Gen. Pl","Dat. Pl","Acc. Pl","Abl. Pl"
+];
+
+// Populate the practice overlay with checkboxes reflecting current
+// selections.  Attach change listeners to update the practice arrays
+// when players check or uncheck boxes.
+function initPracticeOverlay(){
+  const declContainer = document.getElementById('practiceDeclensionOptions');
+  const caseContainer = document.getElementById('practiceCaseOptions');
+  // Clear any previous content
+  declContainer.innerHTML = '';
+  caseContainer.innerHTML = '';
+  // Build declension checkbox list
+  DECLENSION_LABELS.forEach((label, idx) => {
+    const wrap = document.createElement('label');
+    wrap.style.marginRight = '8px';
+    wrap.style.fontSize = '14px';
+    wrap.style.display = 'flex';
+    wrap.style.alignItems = 'center';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'practice-decl-checkbox';
+    cb.checked = practiceDeclensions[idx];
+    cb.addEventListener('change', () => {
+      practiceDeclensions[idx] = cb.checked;
+    });
+    wrap.appendChild(cb);
+    const txt = document.createTextNode(' ' + label);
+    wrap.appendChild(txt);
+    declContainer.appendChild(wrap);
+  });
+  // Build case checkbox list
+  CASE_LABELS.forEach((label, idx) => {
+    const wrap = document.createElement('label');
+    wrap.style.marginRight = '8px';
+    wrap.style.fontSize = '14px';
+    wrap.style.display = 'flex';
+    wrap.style.alignItems = 'center';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'practice-case-checkbox';
+    cb.checked = practiceCases[idx];
+    cb.addEventListener('change', () => {
+      practiceCases[idx] = cb.checked;
+    });
+    wrap.appendChild(cb);
+    const txt = document.createTextNode(' ' + label);
+    wrap.appendChild(txt);
+    caseContainer.appendChild(wrap);
+  });
+}
+
+// Build the level index mapping based on the currently enabled
+// declensions.  This mapping translates the practice mode level
+// number to the actual declension index used by makeBridge().
+function buildPracticeSequence(){
+  practiceLevelIndices = [];
+  for(let i=0; i<practiceDeclensions.length; i++){
+    if(practiceDeclensions[i]) practiceLevelIndices.push(i);
+  }
+}
+
+// Display the practice overlay and initialise its checkboxes.  The
+// overlay is displayed as a flex container so it centers itself.
+function showPracticeOverlay(){
+  initPracticeOverlay();
+  const overlay = document.getElementById('practiceOverlay');
+  overlay.style.display = 'flex';
+}
+
+// Hide the practice overlay.
+function hidePracticeOverlay(){
+  const overlay = document.getElementById('practiceOverlay');
+  overlay.style.display = 'none';
+}
+
+// Skip over any disabled rows (cases) at the start of the run or after
+// a correct selection.  When practice mode is active this helper
+// advances targetRow until it lands on an enabled case.  If the next
+// enabled row lies outside the bridge, finishBridge() is invoked to
+// complete the level automatically.
+function skipDisabledRows(){
+  if(!practiceMode || !bridge) return;
+  // Determine the direction of progression through the rows.  In
+  // Jake mode rows are traversed from bottom to top (decreasing
+  // row index), otherwise from top to bottom.
+  const direction = jakeModeActive ? -1 : 1;
+  // Fetch the mapping of case order for the current bridge.  Each
+  // position in caseOrder corresponds to a row index; caseOrder[r]
+  // yields the original case index (0..9).  A row is disabled if the
+  // corresponding case index is unchecked in practiceCases.
+  while(targetRow >= 0 && targetRow < TILE_ROWS && !practiceCases[caseOrder[targetRow]]){
+    targetRow += direction;
+  }
+  // If we ran past the first/last row then end the bridge.  The
+  // second argument is ignored because finishBridge() handles
+  // advancing to the next level itself.
+  if(targetRow < 0 || targetRow >= TILE_ROWS){
+    finishBridge(true);
+  }
+}
+
+// Attach event handlers to the practice mode button and confirm
+// button.  Toggling practice mode on shows the overlay; toggling
+// it off exits practice mode and starts a normal run.  Confirming
+// selections builds the practice sequence and restarts the run.
+const practiceBtn = document.getElementById('practiceBtn');
+practiceBtn.addEventListener('click', () => {
+  if(!practiceMode){
+    // Enter practice mode: reset selections to all true by default
+    practiceMode = true;
+    practiceCases = Array(10).fill(true);
+    practiceDeclensions = Array(8).fill(true);
+    practiceBtn.textContent = 'Exit Practice';
+    showPracticeOverlay();
+  } else {
+    // Exit practice mode: hide overlay and restart normally
+    practiceMode = false;
+    practiceBtn.textContent = 'Practice Mode';
+    hidePracticeOverlay();
+    // Start a normal run from the beginning
+    phase = PHASE_BRIDGES;
+    restartRun();
+  }
+});
+document.getElementById('practiceConfirmBtn').addEventListener('click', () => {
+  // Build the sequence of enabled declensions
+  buildPracticeSequence();
+  hidePracticeOverlay();
+  // If no declensions are selected, exit practice mode entirely
+  if(practiceLevelIndices.length === 0){
+    practiceMode = false;
+    practiceBtn.textContent = 'Practice Mode';
+    // Immediately end the run
+    phase = PHASE_BRIDGES;
+    restartRun();
+    return;
+  }
+  // Remain in practice mode; update button text accordingly
+  practiceBtn.textContent = 'Exit Practice';
+  // Start a practice run from the beginning
+  phase = PHASE_BRIDGES;
+  restartRun();
 });
 const winOverlay = document.getElementById("winOverlay");
 const finalTimeEl = document.getElementById("finalTime");
@@ -2370,6 +2491,8 @@ function confirmSelection(){
           finishBridge(true);
         } else {
           targetRow = r - 1;
+          // Skip any disabled rows when practice mode is active
+          skipDisabledRows();
         }
       } else {
         // Normal progression downwards through rows
@@ -2377,6 +2500,8 @@ function confirmSelection(){
           finishBridge(true);
         } else {
           targetRow = r + 1;
+          // Skip any disabled rows when practice mode is active
+          skipDisabledRows();
         }
       }
     } else {
@@ -2408,6 +2533,8 @@ function resetToBridgeStart(){
   // Reset to the appropriate starting row depending on Jake mode
   targetRow = jakeModeActive ? (TILE_ROWS - 1) : 0;
   selectedCol = START_COL;
+  // If practice mode is active, skip any disabled rows from the start
+  skipDisabledRows();
 }
 
 // Skip to the next bridge level instantly.  Invoked via the cheat code
@@ -2423,7 +2550,26 @@ function skipLevel(){
  * BRIDGE FLOW
  ***********************/
 function loadBridge(levelIdx, keepTimer=false){
-  bridge = makeBridge(levelIdx);
+  // Determine which declension index to build.  In practice mode the
+  // level index refers to the position within the practice sequence,
+  // which we map to an actual declension.  If no more practice
+  // levels remain, immediately enter the meadow.
+  let actualIdx = levelIdx;
+  let progressLevel = levelIdx;
+  if(practiceMode){
+    // If there are no active practice levels we skip the bridge entirely
+    if(practiceLevelIndices.length === 0){
+      enterMeadow();
+      return;
+    }
+    actualIdx = practiceLevelIndices[levelIdx];
+    progressLevel = levelIdx;
+    if(typeof actualIdx === 'undefined'){
+      enterMeadow();
+      return;
+    }
+  }
+  bridge = makeBridge(actualIdx);
   frog.lives = LIVES_PER_BRIDGE;
   frog.color = nextAvatar.color;
   frog.pattern = nextAvatar.pattern;
@@ -2447,21 +2593,49 @@ function loadBridge(levelIdx, keepTimer=false){
   frog.y = startY;
   frog.onBridge = false;
   selectedCol = START_COL;
-  uiLevel.textContent = (levelIdx+1); uiLives.textContent=frog.lives;
+  // In practice mode show progress through the selected declensions.  In
+  // normal mode display the current level index out of the total bridges.
+  if(practiceMode){
+    uiLevel.textContent = (progressLevel + 1);
+  } else {
+    uiLevel.textContent = (levelIdx + 1);
+  }
+  uiLives.textContent=frog.lives;
   if(!keepTimer) runStartTime = performance.now();
   // Rainbow unlock banner (first time only when starting a run with rainbow avatar)
-  if (levelIdx === 0 && frog.rainbow && !rainbowShown) {   triggerRainbowBanner();   rainbowShown = true; // session-only 
-      }
+  if (((practiceMode ? progressLevel : levelIdx) === 0) && frog.rainbow && !rainbowShown) {
+      triggerRainbowBanner();
+      rainbowShown = true; // session-only
+  }
   console.log("[bridge] built", {
-    levelIdx,
+    levelIdx: (practiceMode ? progressLevel : levelIdx),
     declension: bridge.declension,
     tileSize: bridge.tileSize.toFixed(2),
     spacing: bridge.spacing.toFixed(2),
     x0: Math.round(bridge.x0),
     y0: Math.round(bridge.y0)
   });
+
+  // Skip over any disabled rows at the start of the bridge
+  skipDisabledRows();
 }
-function finishBridge(success){ if(success){ level++; if(level>=TOTAL_BRIDGES){ enterMeadow(); } else { loadBridge(level,true); } } else { loadBridge(level,true); } }
+function finishBridge(success){
+  if(success){
+    level++;
+    // Determine the total number of bridges for this run.  In
+    // practice mode this corresponds to the number of enabled
+    // declensions; otherwise it is the fixed TOTAL_BRIDGES.
+    const total = practiceMode ? practiceLevelIndices.length : TOTAL_BRIDGES;
+    if(level >= total){
+      enterMeadow();
+    } else {
+      loadBridge(level, true);
+    }
+  } else {
+    // On failure reload the same level (practice or normal)
+    loadBridge(level, true);
+  }
+}
 function restartRun(){
   phase = PHASE_BRIDGES;
   level = 0;
@@ -2518,15 +2692,26 @@ function enterMeadow(){
   // run increments the total run counter.  Persist stats to
   // localStorage so achievements can be earned across sessions.
   try{
-    if(mistakes === 0){
-      stats.streak = (stats.streak || 0) + 1;
-    } else {
-      stats.streak = 0;
+    // In practice mode do not update persistent stats so that
+    // achievements tied to streaks or total runs remain unaffected.
+    if(!practiceMode){
+      if(mistakes === 0){
+        stats.streak = (stats.streak || 0) + 1;
+      } else {
+        stats.streak = 0;
+      }
+      stats.totalRuns = (stats.totalRuns || 0) + 1;
+      saveStats();
     }
-    stats.totalRuns = (stats.totalRuns || 0) + 1;
-    saveStats();
   } catch(e){ console.error('Error updating stats', e); }
-  if(!best||lastRunElapsed<best){best=lastRunElapsed; localStorage.setItem("latinFrogBest", String(best));}
+  // Do not update the best time in practice mode so that personal
+  // records reflect full runs only.
+  if(!practiceMode){
+    if(!best || lastRunElapsed < best){
+      best = lastRunElapsed;
+      localStorage.setItem("latinFrogBest", String(best));
+    }
+  }
   meadow = { players:[], t:0, bannerT:0, input:{left:false,right:false,up:false,down:false,dx:0,dy:0}, butterflies:[] };
   const player = makeFrog(-40, H*0.7, { color: nextAvatar.color, pattern: nextAvatar.pattern, accessory: nextAvatar.accessory, skin: nextAvatar.skin });
   player.vx = 180; meadow.players.push(player);
@@ -2539,10 +2724,12 @@ function enterMeadow(){
   }
   for(let i=0;i<28;i++) meadow.butterflies.push({x:Math.random()*W,y:Math.random()*H, a:Math.random()*6.28, sp:0.9+Math.random()*1.2});
   winOverlay.style.display = "none";
-  // Evaluate achievements for this run.  This may unlock accessories.
-  evaluateAchievements();
-  // Reveal one hint per completed run
-  revealOneHintAtMeadow();
+  // Evaluate achievements for this run.  In practice mode we do not
+  // unlock new items so that cosmetic rewards remain exclusive to
+  // full runs.  Otherwise, award achievements normally.
+  if(!practiceMode){
+    evaluateAchievements();
+  }
 }
 
 // keyboard for meadow: Enter = big jump
@@ -2908,14 +3095,22 @@ function drawBridge(){
     if(tile.glow>0){ ctx.save(); ctx.shadowColor=COLORS.tileGlow; ctx.shadowBlur=18*tile.glow; ctx.fillStyle="rgba(255,255,255,.01)"; ctx.fillRect(x,y,bridge.tileSize,bridge.tileSize); ctx.restore(); tile.glow=Math.max(0,tile.glow-0.02); }
     if(tile.crack>0){ const k=tile.crack; ctx.strokeStyle="#333"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x+bridge.tileSize*0.2,y+bridge.tileSize*0.2); ctx.lineTo(x+bridge.tileSize*0.8,y+bridge.tileSize*0.8); ctx.moveTo(x+bridge.tileSize*0.8,y+bridge.tileSize*0.2); ctx.lineTo(x+bridge.tileSize*0.2,y+bridge.tileSize*0.8); ctx.stroke(); tile.crack=Math.max(0,k-0.03); if(tile.crack===0) tile.dead=true; }
     // text is large/high contrast for readability
-    ctx.fillStyle=COLORS.tileText;
-    // Add a subtle drop shadow to improve contrast of text on tiles.
-    ctx.shadowColor = "rgba(0,0,0,0.35)";
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetY = 2;
-    fitText(tile.ending, x+bridge.tileSize/2, y+bridge.tileSize/2, bridge.tileSize*0.8);
-    // Reset shadow so other drawings aren’t affected.
-    ctx.shadowColor = "transparent";
+    // If practice mode is active and this row's case is disabled, overlay
+    // the tile with a semi‑transparent cover and skip drawing the text.
+    const disabledRow = practiceMode && !practiceCases[caseOrder[r]];
+    if(disabledRow){
+      ctx.fillStyle = 'rgba(50,50,50,0.5)';
+      ctx.fillRect(x, y, bridge.tileSize, bridge.tileSize);
+    } else {
+      ctx.fillStyle=COLORS.tileText;
+      // Add a subtle drop shadow to improve contrast of text on tiles.
+      ctx.shadowColor = "rgba(0,0,0,0.35)";
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 2;
+      fitText(tile.ending, x+bridge.tileSize/2, y+bridge.tileSize/2, bridge.tileSize*0.8);
+      // Reset shadow so other drawings aren’t affected.
+      ctx.shadowColor = "transparent";
+    }
   }
   if(targetRow>=0 && targetRow<TILE_ROWS){ const {x,y,half} = getTileCenter(targetRow, selectedCol, true); ctx.save(); ctx.strokeStyle = COLORS.accent; ctx.lineWidth = 4; ctx.setLineDash([10,6]); ctx.strokeRect(x-half-2, y-half-2, (half*2)+4, (half*2)+4); ctx.setLineDash([]); ctx.restore(); }
   ctx.fillStyle=COLORS.tileText; ctx.font=`bold ${Math.max(18, bridge.tileSize*0.48)}px ui-sans-serif`; ctx.fillText(bridge.declension+" Declension", W/2, bridge.y0-32);
@@ -3151,81 +3346,6 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
 
 <script>
 
-
-/***********************
- * SECRET HINT SYSTEM + GALLERY
- ***********************/
-const HINT_WORDS = ["hard","jake","orator","speculum","vesuvius","retro","cornish","cerberus"];
-const HINT_KEY = "latinFrogHintsGiven";
-const HINT_PREFIX = 'I wonder what would happen if I typed the word "';
-const HINT_SUFFIX = '" at the first bridge?';
-
-function loadGivenHints(){
-  try{ const raw = localStorage.getItem(HINT_KEY); const arr = raw ? JSON.parse(raw) : []; return Array.isArray(arr) ? arr : []; }catch(_){ return []; }
-}
-function saveGivenHints(arr){ try{ localStorage.setItem(HINT_KEY, JSON.stringify(arr)); }catch(_){} }
-function pickUnrevealedHint(){
-  const given = new Set(loadGivenHints());
-  const remaining = HINT_WORDS.filter(w => !given.has(w));
-  if(remaining.length === 0) return null;
-  return remaining[Math.floor(Math.random() * remaining.length)];
-}
-function hintSentenceFor(word){ return HINT_PREFIX + word + HINT_SUFFIX; }
-
-function showHintModalWith(word){
-  const modal = document.getElementById('hintModal');
-  const textEl = document.getElementById('hintText');
-  const okBtn = document.getElementById('hintOkBtn');
-  if(!modal || !textEl || !okBtn) return;
-  textEl.textContent = word ? hintSentenceFor(word) : "You’ve discovered all the secret words. Nicely done.";
-  const close = ()=>{ modal.style.display = 'none'; okBtn.removeEventListener('click', close); };
-  okBtn.addEventListener('click', close);
-  modal.style.display = 'flex';
-}
-
-function revealOneHintAtMeadow(){
-  const next = pickUnrevealedHint();
-  if(next){
-    const arr = loadGivenHints(); arr.push(next); saveGivenHints(arr);
-  }
-  refreshHintsButton();
-  showHintModalWith(next);
-}
-
-// Hints Gallery
-function openHintsGallery(){
-  const modal = document.getElementById('hintGalleryModal');
-  const list = document.getElementById('hintList');
-  const prog = document.getElementById('hintProgress');
-  const given = new Set(loadGivenHints());
-  if(!modal || !list || !prog) return;
-  const count = given.size;
-  prog.textContent = `(${count}/${HINT_WORDS.length})`;
-  list.innerHTML = "";
-  HINT_WORDS.forEach((w, i)=>{
-    const li = document.createElement('li');
-    const unlocked = given.has(w);
-    li.className = unlocked ? "" : "locked";
-    const badge = document.createElement('span'); badge.className = "badge"; badge.textContent = unlocked ? "✓" : "•";
-    const text = document.createElement('span'); text.className = "text"; text.textContent = unlocked ? hintSentenceFor(w) : "????";
-    li.appendChild(badge); li.appendChild(text); list.appendChild(li);
-  });
-  const closeBtn = document.getElementById('hintCloseBtn');
-  const close = ()=>{ modal.style.display = 'none'; closeBtn.removeEventListener('click', close); };
-  closeBtn.addEventListener('click', close);
-  modal.style.display = 'flex';
-}
-function refreshHintsButton(){
-  const el = document.getElementById('hintsCount');
-  if(!el) return;
-  const n = loadGivenHints().length;
-  el.textContent = String(n);
-}
-// Hook up header button once DOM is ready
-document.addEventListener('DOMContentLoaded', ()=>{
-  const btn = document.getElementById('hintsBtn');
-  if(btn){ btn.addEventListener('click', openHintsGallery); refreshHintsButton(); }
-});
 /* === Easter Egg Registry (inline v16) ===
    Built-ins: "hard", "vesuvius"(toggle), "orator"(toggle), "speculum"(mirror toggle),
               "retro mode"(Janus pixel mode toggle + phosphor by default),
