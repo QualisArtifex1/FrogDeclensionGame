@@ -59,8 +59,6 @@
       <span>Time <span id="time">0.0</span>s</span>
       <span>Best <span id="best">—</span></span>
     </div>
-    <!-- Dashboard button, visible only for the teacher when authenticated -->
-    <button id="teacherDashBtn" style="display:none; margin-left:auto; background:#5bb140; color:white; border:none; border-radius:8px; padding:8px 12px; font-weight:700; cursor:pointer;">Dashboard</button>
   </header>
   <canvas id="canvas"></canvas>
   <div id="winOverlay">
@@ -120,42 +118,6 @@
   </footer>
 </div>
 <div class="toast" id="toast"></div>
-
-  <!-- Login Overlay shown before the game starts -->
-  <div id="loginOverlay" style="display:flex; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10000; align-items:center; justify-content:center;">
-    <div style="background:#fefefe; padding:20px; border-radius:12px; width:320px; box-shadow:0 4px 12px rgba(0,0,0,0.3); text-align:center;">
-      <h2 style="margin-top:0; color:#16324f;">Sign In or Play</h2>
-      <input id="loginEmail" type="email" placeholder="Email" style="width:100%; padding:8px; margin-bottom:8px; border:1px solid #ccc; border-radius:6px;" />
-      <input id="loginPassword" type="password" placeholder="Password" style="width:100%; padding:8px; margin-bottom:12px; border:1px solid #ccc; border-radius:6px;" />
-      <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <button id="signInBtn" style="flex:1; background:#16324f; color:white; border:none; border-radius:8px; padding:8px; cursor:pointer;">Sign In</button>
-        <button id="signUpBtn" style="flex:1; background:#0f2238; color:white; border:none; border-radius:8px; padding:8px; cursor:pointer;">Sign Up</button>
-      </div>
-      <button id="googleSignInBtn" style="width:100%; background:#db4437; color:white; border:none; border-radius:8px; padding:8px; margin-bottom:8px; cursor:pointer;">Sign In with Google</button>
-      <div style="margin:8px 0; color:#35516b;">or</div>
-      <button id="guestBtn" style="width:100%; background:#5bb140; color:white; border:none; border-radius:8px; padding:8px; cursor:pointer;">Play as Guest</button>
-      <p id="authError" style="color:#d9534f; font-size:12px; margin-top:8px; min-height:16px;"></p>
-    </div>
-  </div>
-
-  <!-- Teacher Dashboard Overlay -->
-  <div id="teacherDashboard" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10001; align-items:center; justify-content:center;">
-    <div style="background:#fefefe; padding:20px; border-radius:12px; width:90%; max-width:800px; max-height:80%; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
-      <h2 style="margin-top:0; color:#16324f;">Teacher Dashboard</h2>
-      <table id="dashboardTable" style="width:100%; border-collapse:collapse; margin-bottom:16px;">
-        <thead>
-          <tr style="background:#e3f2fd;">
-            <th style="padding:8px; border-bottom:1px solid #cfe9ff; text-align:left;">User</th>
-            <th style="padding:8px; border-bottom:1px solid #cfe9ff; text-align:right;">Top Speed (s)</th>
-            <th style="padding:8px; border-bottom:1px solid #cfe9ff; text-align:right;">Unlockables</th>
-            <th style="padding:8px; border-bottom:1px solid #cfe9ff; text-align:right;">Easter Eggs</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <button id="closeDashboardBtn" style="background:#16324f; color:white; border:none; border-radius:8px; padding:8px 16px; cursor:pointer;">Close</button>
-    </div>
-  </div>
 
 <script>
 
@@ -3381,8 +3343,6 @@ document.addEventListener("visibilitychange", ()=>{ if(document.hidden && ac.sta
 window.addEventListener("error", (e)=>{   console.error("Window error:", e.error || e.message || e);   showToast("Error: " + (e.message || "Unknown")); }); window.addEventListener("unhandledrejection", (e)=>{   console.error("Unhandled promise rejection:", e.reason);   const msg = e.reason && (e.reason.message || String(e.reason));   showToast("Error: " + (msg || "Promise rejection")); });
 
 </script>
-</body>
-</html>
 
 <script>
 
@@ -3734,15 +3694,36 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
 })();
 
 </script>
-
-<!-- Firebase Authentication and Dashboard logic using Firebase v8 compat libraries -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+</div> 
+<!-- Inserted login overlay and teacher dashboard -->
+<div id="loginOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:10000;">
+  <div id="loginBox" style="background:#fff; padding:20px; border-radius:8px; display:flex; flex-direction:column; gap:10px; width:320px; text-align:center;">
+    <h2>Welcome to Latin Frogger</h2>
+    <input id="loginEmail" type="email" placeholder="Email" style="padding:8px;">
+    <input id="loginPassword" type="password" placeholder="Password" style="padding:8px;">
+    <button id="signInBtn" style="padding:8px;">Sign In</button>
+    <button id="signUpBtn" style="padding:8px;">Sign Up</button>
+    <button id="googleSignInBtn" style="padding:8px;">Sign in with Google</button>
+    <button id="guestBtn" style="padding:8px;">Play as Guest</button>
+    <div id="loginError" style="color:red;"></div>
+  </div>
+</div>
+<button id="teacherDashBtn" style="position:fixed; top:10px; right:10px; z-index:10001; display:none;">Dashboard</button>
+<div id="teacherOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:10000;">
+  <div style="background:#fff; padding:20px; border-radius:8px; width:80%; max-height:80%; overflow:auto;">
+    <h2>Teacher Dashboard</h2>
+    <table id="dashboardTable" border="1" style="width:100%; border-collapse:collapse;">
+      <tr><th>User</th><th>Best Time</th><th>Unlocks</th><th>Easter Eggs</th></tr>
+    </table>
+    <button id="closeDashboardBtn" style="margin-top:10px;">Close</button>
+  </div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 <script>
-  // Firebase configuration for Latin Frogger. This config is provided by the user.
-  const firebaseConfig = {
+  // Firebase configuration (provided by user)
+  var firebaseConfig = {
     apiKey: "AIzaSyAYZnkbWzGIp2EY0EvJ4-_l943xJG2KXjw",
     authDomain: "latin-frogger.firebaseapp.com",
     projectId: "latin-frogger",
@@ -3752,169 +3733,100 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
     measurementId: "G-STJZLX2SZL"
   };
   // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-  if (firebase.analytics) { firebase.analytics(); }
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
   const auth = firebase.auth();
   const db = firebase.firestore();
-  const teacherEmail = "acornish@gmail.com"; // replace with your teacher email
-
-  const wrap = document.getElementById('wrap');
-  const loginOverlay = document.getElementById('loginOverlay');
-  const teacherDashBtn = document.getElementById('teacherDashBtn');
-  const teacherDashboard = document.getElementById('teacherDashboard');
-  const dashboardTableBody = document.querySelector('#dashboardTable tbody');
-  const closeDashboardBtn = document.getElementById('closeDashboardBtn');
-  const loginEmailEl = document.getElementById('loginEmail');
-  const loginPasswordEl = document.getElementById('loginPassword');
-  const signInBtn = document.getElementById('signInBtn');
-  const signUpBtn = document.getElementById('signUpBtn');
-  const googleSignInBtn = document.getElementById('googleSignInBtn');
-  const guestBtn = document.getElementById('guestBtn');
-  const authErrorEl = document.getElementById('authError');
-  let isGuest = false;
-  function showLogin() {
-    loginOverlay.style.display = 'flex';
-    if (wrap) wrap.style.display = 'none';
-  }
-  function hideLogin() {
-    loginOverlay.style.display = 'none';
-    if (wrap) wrap.style.display = 'flex';
-  }
-  async function loadUserData() {
-    const user = auth.currentUser;
-    if (!user) return;
-    const ref = db.collection('users').doc(user.uid);
-    const docSnap = await ref.get();
-    if (!docSnap.exists) {
-      await ref.set({
-        username: user.displayName || user.email,
-        topSpeed: null,
-        unlockCount: 0,
-        easterEggCount: 0,
-        isTeacher: (user.email === teacherEmail)
-      });
-    }
-  }
-  async function updateUserStats(bestTime, unlockCount, easterEggCount) {
-    if (isGuest) return;
-    const user = auth.currentUser;
-    if (!user) return;
-    const ref = db.collection('users').doc(user.uid);
-    const docSnap = await ref.get();
-    if (docSnap.exists) {
-      const data = docSnap.data() || {};
-      const updateData = {};
-      if (bestTime != null && (data.topSpeed == null || bestTime < data.topSpeed)) {
-        updateData.topSpeed = bestTime;
-      }
-      updateData.unlockCount = unlockCount;
-      updateData.easterEggCount = easterEggCount;
-      if (Object.keys(updateData).length > 0) {
-        await ref.update(updateData);
-      }
-    } else {
-      await ref.set({
-        username: user.displayName || user.email,
-        topSpeed: bestTime,
-        unlockCount: unlockCount,
-        easterEggCount: easterEggCount,
-        isTeacher: (user.email === teacherEmail)
-      });
-    }
-  }
-  window.updateUserStats = updateUserStats;
-  async function loadDashboard() {
-    dashboardTableBody.innerHTML = '';
-    const querySnapshot = await db.collection('users').get();
-    querySnapshot.forEach(function(docSnap) {
-      const data = docSnap.data() || {};
-      const tr = document.createElement('tr');
-      const tdUser = document.createElement('td');
-      tdUser.textContent = data.username || docSnap.id;
-      tdUser.style.padding = '6px 8px';
-      const tdSpeed = document.createElement('td');
-      tdSpeed.textContent = (data.topSpeed != null ? Number(data.topSpeed).toFixed(1) : '—');
-      tdSpeed.style.textAlign = 'right';
-      tdSpeed.style.padding = '6px 8px';
-      const tdUnlock = document.createElement('td');
-      tdUnlock.textContent = (data.unlockCount != null ? data.unlockCount : 0);
-      tdUnlock.style.textAlign = 'right';
-      tdUnlock.style.padding = '6px 8px';
-      const tdEgg = document.createElement('td');
-      tdEgg.textContent = (data.easterEggCount != null ? data.easterEggCount : 0);
-      tdEgg.style.textAlign = 'right';
-      tdEgg.style.padding = '6px 8px';
-      tr.appendChild(tdUser);
-      tr.appendChild(tdSpeed);
-      tr.appendChild(tdUnlock);
-      tr.appendChild(tdEgg);
-      dashboardTableBody.appendChild(tr);
-    });
-  }
-  auth.onAuthStateChanged(async function(user) {
-    if (user) {
-      isGuest = false;
-      await loadUserData();
-      hideLogin();
-      const ref = db.collection('users').doc(user.uid);
-      const snap = await ref.get();
-      const data = snap.exists ? snap.data() : {};
-      const isTeacher = !!(data && data.isTeacher);
-      teacherDashBtn.style.display = isTeacher ? 'inline-block' : 'none';
-    } else {
-      if (!isGuest) {
-        showLogin();
-      }
-      teacherDashBtn.style.display = 'none';
-    }
-  });
-  signInBtn.addEventListener('click', function() {
-    authErrorEl.textContent = '';
-    const email = loginEmailEl.value.trim();
-    const pass = loginPasswordEl.value;
-    if (!email || !pass) {
-      authErrorEl.textContent = 'Please enter email and password.';
-      return;
-    }
-    auth.signInWithEmailAndPassword(email, pass).catch(function(err) {
-      authErrorEl.textContent = err.message;
+  const provider = new firebase.auth.GoogleAuthProvider();
+  // Replace this with your actual teacher email address
+  const teacherEmail = "acornish@gmail.com";
+  let isGuest = true;
+  let currentUser = null;
+  // Helper functions to show/hide overlays
+  function showLogin(){ document.getElementById("loginOverlay").style.display = "flex"; }
+  function hideLogin(){ document.getElementById("loginOverlay").style.display = "none"; }
+  function showDashboard(){ document.getElementById("teacherOverlay").style.display = "flex"; }
+  function hideDashboard(){ document.getElementById("teacherOverlay").style.display = "none"; }
+  // Button event listeners
+  document.getElementById("signInBtn").addEventListener("click", function(){
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    auth.signInWithEmailAndPassword(email, password).catch(function(error){
+      document.getElementById("loginError").innerText = error.message;
     });
   });
-  signUpBtn.addEventListener('click', function() {
-    authErrorEl.textContent = '';
-    const email = loginEmailEl.value.trim();
-    const pass = loginPasswordEl.value;
-    if (!email || !pass) {
-      authErrorEl.textContent = 'Please enter email and password.';
-      return;
-    }
-    auth.createUserWithEmailAndPassword(email, pass).then(function() {
-      loadUserData();
-    }).catch(function(err) {
-      authErrorEl.textContent = err.message;
+  document.getElementById("signUpBtn").addEventListener("click", function(){
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    auth.createUserWithEmailAndPassword(email, password).catch(function(error){
+      document.getElementById("loginError").innerText = error.message;
     });
   });
-  googleSignInBtn.addEventListener('click', function() {
-    authErrorEl.textContent = '';
-    const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).then(function() {
-      loadUserData();
-    }).catch(function(err) {
-      authErrorEl.textContent = err.message;
-    });
+  document.getElementById("googleSignInBtn").addEventListener("click", function(){
+    auth.signInWithRedirect(provider);
   });
-  guestBtn.addEventListener('click', function() {
+  document.getElementById("guestBtn").addEventListener("click", function(){
     isGuest = true;
     hideLogin();
-    teacherDashBtn.style.display = 'none';
   });
-  teacherDashBtn.addEventListener('click', async function() {
-    await loadDashboard();
-    teacherDashboard.style.display = 'flex';
+  document.getElementById("teacherDashBtn").addEventListener("click", function(){
+    // fetch all user stats and populate table
+    db.collection("users").get().then(function(snapshot){
+      const table = document.getElementById("dashboardTable");
+      // reset table (keeping header row)
+      table.innerHTML = "<tr><th>User</th><th>Best Time</th><th>Unlocks</th><th>Easter Eggs</th></tr>";
+      snapshot.forEach(function(doc){
+        const data = doc.data();
+        const tr = document.createElement("tr");
+        tr.innerHTML = "<td>"+ (data.email || data.username || "") +"</td><td>"+ (data.bestTime || "") +"</td><td>"+ (data.unlocks || "") +"</td><td>"+ (data.easterEggs || "") +"</td>";
+        table.appendChild(tr);
+      });
+      showDashboard();
+    }).catch(function(error){ console.error("Dashboard error", error); });
   });
-  closeDashboardBtn.addEventListener('click', function() {
-    teacherDashboard.style.display = 'none';
+  document.getElementById("closeDashboardBtn").addEventListener("click", hideDashboard);
+  // Handle redirect result when page loads
+  auth.getRedirectResult().then(function(result){
+    if(result && result.user){
+      currentUser = result.user;
+      isGuest = false;
+    }
+  }).catch(function(error){
+    console.warn("Redirect error", error);
+    if(error && error.message){
+      document.getElementById("loginError").innerText = error.message;
+    }
   });
+  // Listen for auth state changes
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      currentUser = user;
+      isGuest = false;
+      hideLogin();
+      // Show teacher dashboard button for teacher
+      if(user.email === teacherEmail){
+        document.getElementById("teacherDashBtn").style.display = "block";
+      }
+    } else {
+      // if not guest, show login overlay
+      if(!isGuest){
+        showLogin();
+      }
+    }
+  });
+  // Utility to update stats; call this from game logic when appropriate
+  window.updateUserStats = function(bestTime, unlocks, easterEggs){
+    if(isGuest || !currentUser){ return; }
+    db.collection("users").doc(currentUser.uid).set({
+      email: currentUser.email || "",
+      bestTime: bestTime,
+      unlocks: unlocks,
+      easterEggs: easterEggs
+    }, { merge: true }).catch(function(error){
+      console.error("Error updating stats", error);
+    });
+  };
 </script>
 </body>
 </html>
