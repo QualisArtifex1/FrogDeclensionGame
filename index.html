@@ -3694,8 +3694,7 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
 })();
 
 </script>
-</div> 
-<!-- Inserted login overlay and teacher dashboard -->
+<!-- Login overlay and teacher dashboard -->
 <div id="loginOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:10000;">
   <div id="loginBox" style="background:#fff; padding:20px; border-radius:8px; display:flex; flex-direction:column; gap:10px; width:320px; text-align:center;">
     <h2>Welcome to Latin Frogger</h2>
@@ -3732,23 +3731,28 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
     appId: "1:1090179387353:web:e72e9c98b85c327b9953c8",
     measurementId: "G-STJZLX2SZL"
   };
-  // Initialize Firebase
   if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
   }
   const auth = firebase.auth();
   const db = firebase.firestore();
   const provider = new firebase.auth.GoogleAuthProvider();
-  // Replace this with your actual teacher email address
+  // Use teacher's real email address
   const teacherEmail = "acornish@gmail.com";
   let isGuest = true;
   let currentUser = null;
-  // Helper functions to show/hide overlays
   function showLogin(){ document.getElementById("loginOverlay").style.display = "flex"; }
   function hideLogin(){ document.getElementById("loginOverlay").style.display = "none"; }
   function showDashboard(){ document.getElementById("teacherOverlay").style.display = "flex"; }
   function hideDashboard(){ document.getElementById("teacherOverlay").style.display = "none"; }
-  // Button event listeners
+  // Prevent game keybindings from interfering while typing
+  ["loginEmail","loginPassword"].forEach(function(id){
+    const el = document.getElementById(id);
+    el.addEventListener("keydown", function(e){
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    });
+  });
   document.getElementById("signInBtn").addEventListener("click", function(){
     const email = document.getElementById("loginEmail").value.trim();
     const password = document.getElementById("loginPassword").value;
@@ -3764,17 +3768,22 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
     });
   });
   document.getElementById("googleSignInBtn").addEventListener("click", function(){
-    auth.signInWithRedirect(provider);
+    // Try popup first; fallback to redirect if blocked
+    auth.signInWithPopup(provider).catch(function(err){
+      if (err.code === "auth/popup-blocked" || err.code === "auth/cancelled-popup-request" || err.code === "auth/popup-closed-by-user") {
+        auth.signInWithRedirect(provider);
+      } else {
+        document.getElementById("loginError").innerText = err.message;
+      }
+    });
   });
   document.getElementById("guestBtn").addEventListener("click", function(){
     isGuest = true;
     hideLogin();
   });
   document.getElementById("teacherDashBtn").addEventListener("click", function(){
-    // fetch all user stats and populate table
     db.collection("users").get().then(function(snapshot){
       const table = document.getElementById("dashboardTable");
-      // reset table (keeping header row)
       table.innerHTML = "<tr><th>User</th><th>Best Time</th><th>Unlocks</th><th>Easter Eggs</th></tr>";
       snapshot.forEach(function(doc){
         const data = doc.data();
@@ -3786,46 +3795,36 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
     }).catch(function(error){ console.error("Dashboard error", error); });
   });
   document.getElementById("closeDashboardBtn").addEventListener("click", hideDashboard);
-  // Handle redirect result when page loads
   auth.getRedirectResult().then(function(result){
-    if(result && result.user){
+    if (result && result.user) {
       currentUser = result.user;
       isGuest = false;
     }
   }).catch(function(error){
-    console.warn("Redirect error", error);
-    if(error && error.message){
+    if (error && error.message) {
       document.getElementById("loginError").innerText = error.message;
     }
   });
-  // Listen for auth state changes
   auth.onAuthStateChanged(function(user){
-    if(user){
+    if (user) {
       currentUser = user;
       isGuest = false;
       hideLogin();
-      // Show teacher dashboard button for teacher
-      if(user.email === teacherEmail){
+      if (user.email === teacherEmail) {
         document.getElementById("teacherDashBtn").style.display = "block";
       }
     } else {
-      // if not guest, show login overlay
-      if(!isGuest){
-        showLogin();
-      }
+      if (!isGuest) { showLogin(); }
     }
   });
-  // Utility to update stats; call this from game logic when appropriate
   window.updateUserStats = function(bestTime, unlocks, easterEggs){
-    if(isGuest || !currentUser){ return; }
+    if (isGuest || !currentUser) { return; }
     db.collection("users").doc(currentUser.uid).set({
       email: currentUser.email || "",
       bestTime: bestTime,
       unlocks: unlocks,
       easterEggs: easterEggs
-    }, { merge: true }).catch(function(error){
-      console.error("Error updating stats", error);
-    });
+    }, { merge: true }).catch(function(error){ console.error("Error updating stats", error); });
   };
 </script>
 </body>
