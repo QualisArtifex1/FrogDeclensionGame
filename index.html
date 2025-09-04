@@ -2730,6 +2730,23 @@ function enterMeadow(){
   if(!practiceMode){
     evaluateAchievements();
   }
+
+  // Save run statistics to Firebase
+  // Compute the number of unlocks and easter eggs unlocked.  The
+  // unlocks object stores achievements that have been earned; count
+  // how many values are truthy.  Easter egg tracking is not built
+  // into the base game, so default to 0 here.  The updateUserStats
+  // function (defined in the login script) will ignore the call when
+  // the player is a guest or not signed in.
+  try {
+    const unlockCount = Object.values(unlocks || {}).filter(Boolean).length;
+    const easterCount = 0; // adjust if your game tracks Easter eggs
+    if (typeof updateUserStats === 'function') {
+      updateUserStats(lastRunElapsed, unlockCount, easterCount);
+    }
+  } catch (err) {
+    console.error('Error updating remote stats', err);
+  }
 }
 
 // keyboard for meadow: Enter = big jump
@@ -3498,16 +3515,33 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
     showLogin();
   }
   // updateUserStats writes to Firestore
-  window.updateUserStats = function(bestTime, unlocks, easterEggs){
+window.updateUserStats = async function(runTime, unlockCount, easterCount) {
+    // Do not record stats for guests or if no user is signed in
     if (isGuest || !currentUser) { return; }
-    db.collection("users").doc(currentUser.uid).set({
-      email: currentUser.email || "",
-      bestTime: bestTime,
-      unlocks: unlocks,
-      easterEggs: easterEggs
-    }, { merge: true }).catch(function(error){
+    try {
+      const docRef = db.collection("users").doc(currentUser.uid);
+      const doc = await docRef.get();
+      let bestTime = runTime;
+      let totalRuns = 1;
+      if (doc.exists) {
+        const data = doc.data();
+        // Preserve the fastest (smallest) best time if it already exists
+        if (data.bestTime && data.bestTime < runTime) {
+          bestTime = data.bestTime;
+        }
+        totalRuns = (data.totalRuns || 0) + 1;
+      }
+      await docRef.set({
+        email: currentUser.email || "",
+        bestTime: bestTime,
+        totalRuns: totalRuns,
+        unlocks: unlockCount,
+        easterEggs: easterCount,
+        lastRun: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
       console.error("Error updating stats", error);
-    });
+    }
   };
 </script>
 
