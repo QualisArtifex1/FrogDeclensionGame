@@ -821,6 +821,11 @@ const CASE_LABELS = [
   "Nom. Pl","Gen. Pl","Dat. Pl","Acc. Pl","Abl. Pl"
 ];
 
+// Track whether the skip cheat has been used in the current run.  When
+// true we treat the run like practice mode for scoring purposes,
+// meaning no unlocks are awarded and no best times are recorded.
+let skipCheatUsed = false;
+
 // Populate the practice overlay with checkboxes reflecting current
 // selections.  Attach change listeners to update the practice arrays
 // when players check or uncheck boxes.
@@ -2542,6 +2547,10 @@ function resetToBridgeStart(){
 // as completed successfully.
 function skipLevel(){
   if(phase === PHASE_BRIDGES){
+    // Mark that the skip cheat was used so that this run does not
+    // count towards unlocks or best times.  This flag will be
+    // cleared when the next run starts in restartRun().
+    skipCheatUsed = true;
     finishBridge(true);
   }
 }
@@ -2642,6 +2651,10 @@ function restartRun(){
   runStartTime = performance.now();
   // Reset mistake counter at the start of a new run
   mistakes = 0;
+  // Clear the skip cheat flag so that subsequent runs count towards
+  // achievements and best times.  If the skip cheat is used again
+  // during this new run the flag will be set by skipLevel().
+  skipCheatUsed = false;
   // Capture current mode flags for achievement tracking.  If a run
   // restarts outside of startRun(), ensure currentRunJake and
   // currentRunHard reflect active modes.
@@ -2692,9 +2705,10 @@ function enterMeadow(){
   // run increments the total run counter.  Persist stats to
   // localStorage so achievements can be earned across sessions.
   try{
-    // In practice mode do not update persistent stats so that
-    // achievements tied to streaks or total runs remain unaffected.
-    if(!practiceMode){
+    // In practice mode or if the skip cheat was used do not update
+    // persistent stats so that achievements tied to streaks or
+    // total runs remain unaffected.
+    if(!practiceMode && !skipCheatUsed){
       if(mistakes === 0){
         stats.streak = (stats.streak || 0) + 1;
       } else {
@@ -2706,7 +2720,7 @@ function enterMeadow(){
   } catch(e){ console.error('Error updating stats', e); }
   // Do not update the best time in practice mode so that personal
   // records reflect full runs only.
-  if(!practiceMode){
+  if(!practiceMode && !skipCheatUsed){
     if(!best || lastRunElapsed < best){
       best = lastRunElapsed;
       localStorage.setItem("latinFrogBest", String(best));
@@ -2727,25 +2741,28 @@ function enterMeadow(){
   // Evaluate achievements for this run.  In practice mode we do not
   // unlock new items so that cosmetic rewards remain exclusive to
   // full runs.  Otherwise, award achievements normally.
-  if(!practiceMode){
+  if(!practiceMode && !skipCheatUsed){
     evaluateAchievements();
   }
 
-  // Save run statistics to Firebase
-  // Compute the number of unlocks and easter eggs unlocked.  The
+  // Save run statistics to Firebase when the run counts toward official
+  // records (i.e. not in practice mode and skip cheat was not used).
+  // Compute the number of unlocks and Easter eggs unlocked.  The
   // unlocks object stores achievements that have been earned; count
   // how many values are truthy.  Easter egg tracking is not built
   // into the base game, so default to 0 here.  The updateUserStats
   // function (defined in the login script) will ignore the call when
   // the player is a guest or not signed in.
-  try {
-    const unlockCount = Object.values(unlocks || {}).filter(Boolean).length;
-    const easterCount = 0; // adjust if your game tracks Easter eggs
-    if (typeof updateUserStats === 'function') {
-      updateUserStats(lastRunElapsed, unlockCount, easterCount);
+  if(!practiceMode && !skipCheatUsed){
+    try {
+      const unlockCount = Object.values(unlocks || {}).filter(Boolean).length;
+      const easterCount = 0; // adjust if your game tracks Easter eggs
+      if (typeof updateUserStats === 'function') {
+        updateUserStats(lastRunElapsed, unlockCount, easterCount);
+      }
+    } catch (err) {
+      console.error('Error updating remote stats', err);
     }
-  } catch (err) {
-    console.error('Error updating remote stats', err);
   }
 }
 
