@@ -2612,6 +2612,17 @@ function resetToBridgeStart(){
 // "skip".  Only works when on a bridge.  It marks the current bridge
 // as completed successfully.
 function skipLevel(){
+  // Restrict the skip cheat to the instructor's login only.  If the
+  // current user is not the teacher, ignore the code and optionally
+  // notify them.  currentUser and teacherEmail come from the login
+  // system; isGuest indicates no login.
+  if (!currentUser || currentUser.email !== teacherEmail) {
+    // Show a brief toast informing the player that skip is not available.
+    if (typeof showToast === 'function') {
+      showToast('Skip is only available for the instructor.');
+    }
+    return;
+  }
   if(phase === PHASE_BRIDGES){
     // Mark that the skip cheat was used so that this run does not
     // count towards unlocks or best times.  This flag will be
