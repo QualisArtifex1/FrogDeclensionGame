@@ -3466,7 +3466,7 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
   <div style="background:#fff; padding:20px; border-radius:8px; width:80%; max-height:80%; overflow:auto;">
     <h2>Teacher Dashboard</h2>
     <table id="dashboardTable" border="1" style="width:100%; border-collapse:collapse;">
-      <tr><th>User</th><th>Best Time</th><th>Unlocks</th><th>Easter Eggs</th></tr>
+      <tr><th>User</th><th>Best Time</th><th>Runs</th><th>Unlocks</th><th>Easter Eggs</th></tr>
     </table>
     <button id="closeDashboardBtn" style="margin-top:10px;">Close</button>
   </div>
@@ -3543,11 +3543,15 @@ window.addEventListener("error", (e)=>{   console.error("Window error:", e.error
   document.getElementById("teacherDashBtn").addEventListener("click", function(){
     db.collection("users").get().then(function(snapshot){
       const table = document.getElementById("dashboardTable");
-      table.innerHTML = "<tr><th>User</th><th>Best Time</th><th>Unlocks</th><th>Easter Eggs</th></tr>";
+      table.innerHTML = "<tr><th>User</th><th>Best Time</th><th>Runs</th><th>Unlocks</th><th>Easter Eggs</th></tr>";
       snapshot.forEach(function(doc){
         const data = doc.data();
         const tr = document.createElement("tr");
-        tr.innerHTML = "<td>"+ (data.email || data.username || "") +"</td><td>"+ (data.bestTime || "") +"</td><td>"+ (data.unlocks || "") +"</td><td>"+ (data.easterEggs || "") +"</td>";
+        tr.innerHTML = "<td>"+ (data.email || data.username || "") +"</td>" +
+                       "<td>"+ (data.bestTime || "") +"</td>" +
+                       "<td>"+ (data.totalRuns || 0) +"</td>" +
+                       "<td>"+ (data.unlocks || "") +"</td>" +
+                       "<td>"+ (data.easterEggs || "") +"</td>";
         table.appendChild(tr);
       });
       showDashboard();
